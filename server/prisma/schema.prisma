@@ -1,0 +1,12 @@
+// Prisma schema: describes the Doc365 database.
+// Tables (models) are added phase by phase, starting in Phase 2.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Read from .env (DATABASE_URL). Never write the password here.
+  url      = env("DATABASE_URL")
+}

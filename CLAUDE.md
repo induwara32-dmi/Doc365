@@ -24,7 +24,7 @@ This is a portfolio/learning project by a second-year Software Technology studen
 
 ## Tech stack
 - Node.js 20+ (JavaScript, ES modules)
-- Backend: Express, PostgreSQL 16, Prisma (ORM + migrations)
+- Backend: Express, PostgreSQL 16+, Prisma (ORM + migrations)
 - Auth: JWT (jsonwebtoken), bcrypt for passwords and PINs
 - Validation: zod
 - QR codes: qrcode
@@ -35,6 +35,20 @@ This is a portfolio/learning project by a second-year Software Technology studen
   stored as JSONB in PostgreSQL. Aim to stay close to the Sri Lanka FHIR
   Implementation Guide direction (PHN as patient identifier).
 - Signatures: Ed25519, JSON canonicalized (sorted keys) before signing.
+
+## Technical decisions (approved; future sessions must not undo these)
+- Prisma pinned to exactly 6.19.3 (`prisma` and `@prisma/client`). Do not upgrade:
+  Prisma 7+ needs a driver adapter package that is not in the tech stack.
+- Express 5.3.0.
+- No `dotenv`. The single `.env` lives in the repo root and is loaded with Node's
+  `--env-file=../.env`. Run Prisma CLI through the npm script, never plain `npx prisma`
+  (it cannot see the root `.env`): `npm run prisma -- <command>`, `npm run db:migrate`,
+  `npm run db:generate`.
+- Known and accepted: `npm audit` reports 3 high warnings (`deepmerge-ts` inside the
+  `prisma` CLI, dev-only). The only fix is a forced upgrade to Prisma 7, so leave them.
+  Do not run `npm audit fix --force`.
+- Local development uses PostgreSQL 18 on Windows (no Docker); `docker-compose.yml` is
+  kept as an option.
 
 ## Folder structure
 ```

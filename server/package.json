@@ -4,9 +4,23 @@
   "description": "Doc365 backend: trust core, records, access engine",
   "type": "module",
   "private": true,
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
+    "dev": "node --env-file=../.env --watch src/server.js",
+    "start": "node --env-file=../.env src/server.js",
+    "prisma": "node --env-file=../.env node_modules/prisma/build/index.js",
+    "db:generate": "npm run prisma -- generate",
+    "db:migrate": "npm run prisma -- migrate dev",
     "keys": "node scripts/generate-lab-keys.js",
     "demo:signing": "node scripts/demo-signing.js"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "express": "5.3.0"
+  },
+  "devDependencies": {
+    "prisma": "6.19.3"
   }
 }
