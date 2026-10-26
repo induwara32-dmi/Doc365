@@ -65,9 +65,10 @@ This is a portfolio/learning project by a second-year Software Technology studen
   columns in the same transaction, never edited on its own.
 - Card serials come from `crypto` random bytes, never counters. Issuing a replacement
   card blocks/replaces the old card and creates the new one in one transaction.
-- The `nic` column is plain nullable unique text. Old NICs (9 digits + V/X) are
-  normalized to 12 digits before saving, using a conversion rule verified from an
-  official source.
+- The `nic` column is plain nullable unique text (no migration for NIC rules). Every NIC
+  goes through `normalizeNic()` (`src/patients/nic.js`) before saving AND before
+  searching: `DEMO-NIC-` prefix required, old form converted with the DRP rule text,
+  day-of-year checked, invalid NICs rejected (AppError INVALID_NIC). See DESIGN.md section 1.
 
 ## Folder structure
 ```

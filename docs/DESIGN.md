@@ -42,9 +42,19 @@ If code and this file disagree, ask before changing either.
 - The photo matters for security: when a card is scanned without a PIN, staff use
   the photo to confirm the card holder is the patient. The prototype skips photos in
   Phase 2; a nullable `photoUrl` column on Card can be added in a later phase.
-- NIC is stored as plain text with no format check: Sri Lanka has old NICs
-  (9 digits + V/X) and new 12-digit NICs, and one person can have both.
-  Demo data uses the `DEMO-NIC-` prefix so it can never match a real NIC.
+- NIC: Sri Lanka has old NICs (9 digits + V/X) and new 12-digit NICs (since 2016),
+  and one person can have both. Doc365 stores ONE form: every NIC is normalized to
+  the new 12-digit form before saving AND before searching, so the same person can
+  never be registered twice under both forms, and a lookup by the old NIC still works.
+  - Official rule (drp.gov.lk FAQ): drop the V/X, add "0" before the last 4 digits,
+    start with "19". Example: 855420159V -> 198554200159. (The DRP page prints this
+    example as "19 85542 0 159", which has only 11 digits; we follow the rule text.)
+  - Strict: accept old (any case, spaces around trimmed) or new form, then check the
+    day-of-year digits are 001-366 or 501-866 (women +500). Anything else is rejected
+    with a clear error; an invalid NIC is never saved unchanged.
+  - The V/X letter (voter status) is not kept; Doc365 has no use for it.
+  - Demo NICs must start with `DEMO-NIC-` (real rules apply after it); NICs without
+    the prefix are rejected, so a real NIC can never be entered by accident.
 
 ### 2. The "three keys" rule
 A full record opens only when ALL three are present:
@@ -104,6 +114,8 @@ Accounts are per PERSON, inside a facility. The audit log shows
 ## Out of scope for the prototype
 - Real patient data (never), real NIC/PHN numbers (never).
 - NFC chip cards (QR is enough for the demo).
+- NIC special cases: under section 19(2) (dual citizenship) the old NIC number is
+  cancelled and a new one issued. The prototype does not handle cancelled NICs.
 - Health ID size: 6 random digits give only 1 million IDs. Fine for the demo, but far
   too few for Sri Lanka (about 22 million people, plus every future birth). A real
   system would need a longer ID; also, random IDs get more clashes (retries) as the
