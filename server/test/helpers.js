@@ -1,7 +1,8 @@
 // Shared helpers for tests. Not a test file itself (it does not end in .test.js).
-import { randomInt, randomUUID } from 'node:crypto';
+import { generateKeyPairSync, randomInt, randomUUID } from 'node:crypto';
 import { prisma } from '../src/db.js';
 import { systemActor } from '../src/audit/audit-log.js';
+import { createFacility, createUser, createMembership } from '../src/auth/account-service.js';
 
 // The actor for changes made by tests (audited like any other change)
 export const TEST_ACTOR = systemActor('test');
@@ -44,4 +45,42 @@ export async function createTestPatient(overrides = {}) {
 // All cards of a patient, oldest first
 export async function cardsOf(patientId) {
   return prisma.card.findMany({ where: { patientId }, orderBy: { issuedAt: 'asc' } });
+}
+
+// ---------- Phase 3: facilities, users, memberships ----------
+
+// One public key for all test facilities (tests never sign with it)
+const TEST_PUBLIC_KEY = generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'pem' });
+
+// Test-only password. Real passwords are never written in code.
+export const TEST_PASSWORD = 'test-only-password-123';
+
+export async function createTestFacility(type, name) {
+  const id = randomUUID().slice(0, 8);
+  return createFacility(
+    {
+      code: `test-${type.toLowerCase()}-${id}`,
+      name: name ?? `Test ${type} ${id}`,
+      type,
+      publicKeyPem: type === 'AUTHORITY' ? null : TEST_PUBLIC_KEY,
+    },
+    { actor: TEST_ACTOR },
+  );
+}
+
+// A user with memberships: createTestUser({ memberships: [{ facility, role, jobTitle }], patientId })
+// Returns { user, username, memberships }
+export async function createTestUser({ memberships = [], patientId, fullName = 'Test Person' } = {}) {
+  const username = `t.${randomUUID().slice(0, 12)}`;
+  const user = await createUser({ username, password: TEST_PASSWORD, fullName, patientId }, { actor: TEST_ACTOR });
+  const created = [];
+  for (const m of memberships) {
+    created.push(
+      await createMembership(
+        { userId: user.id, facilityId: m.facility.id, role: m.role, jobTitle: m.jobTitle },
+        { actor: TEST_ACTOR },
+      ),
+    );
+  }
+  return { user, username, memberships: created };
 }
