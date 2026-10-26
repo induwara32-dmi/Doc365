@@ -1,0 +1,10 @@
+# Secrets: never commit
+**/keys/
+.env
+*.pem
+
+node_modules/
+**/output/
+.next/
+dist/
+.DS_Store

@@ -1,0 +1,12 @@
+{
+  "name": "doc365-server",
+  "version": "0.1.0",
+  "description": "Doc365 backend: trust core, records, access engine",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "keys": "node scripts/generate-lab-keys.js",
+    "demo:signing": "node scripts/demo-signing.js"
+  }
+}

@@ -1,0 +1,14 @@
+# Local development database only. Start with: docker compose up -d
+services:
+  db:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_USER: doc365
+      POSTGRES_PASSWORD: doc365_dev_password
+      POSTGRES_DB: doc365
+    ports:
+      - "5432:5432"
+    volumes:
+      - doc365_pgdata:/var/lib/postgresql/data
+volumes:
+  doc365_pgdata:

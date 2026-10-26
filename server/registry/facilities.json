@@ -1,0 +1,9 @@
+{
+  "facilities": [
+    {
+      "reference": "Organization/demo-lab-colombo",
+      "name": "Demo Lab Colombo",
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAfI855NN1sDHc2y7ffI1mZCEd3zrTOQ8Rb42qIOjWwp4=\n-----END PUBLIC KEY-----\n"
+    }
+  ]
+}

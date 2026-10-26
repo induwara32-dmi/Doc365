@@ -1,0 +1,64 @@
+{
+  "resourceType": "Bundle",
+  "id": "report-bundle-0001",
+  "type": "collection",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:patient-demo-0001",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient-demo-0001",
+        "identifier": [{ "system": "urn:doc365:demo-phn", "value": "DEMO-000123-7" }],
+        "name": [{ "family": "Perera", "given": ["Demo"] }],
+        "gender": "male",
+        "birthDate": "1985-04-12"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-glucose-0001",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-glucose-0001",
+        "status": "final",
+        "code": {
+          "coding": [{ "system": "http://loinc.org", "code": "1558-6", "display": "Fasting glucose [Mass/volume] in Serum or Plasma" }],
+          "text": "Fasting Blood Sugar (FBS)"
+        },
+        "subject": { "reference": "Patient/patient-demo-0001" },
+        "effectiveDateTime": "2026-10-08T07:30:00+05:30",
+        "valueQuantity": { "value": 126, "unit": "mg/dL", "system": "http://unitsofmeasure.org", "code": "mg/dL" }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-hba1c-0001",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-hba1c-0001",
+        "status": "final",
+        "code": {
+          "coding": [{ "system": "http://loinc.org", "code": "4548-4", "display": "Hemoglobin A1c/Hemoglobin.total in Blood" }],
+          "text": "HbA1c"
+        },
+        "subject": { "reference": "Patient/patient-demo-0001" },
+        "effectiveDateTime": "2026-10-08T07:30:00+05:30",
+        "valueQuantity": { "value": 6.8, "unit": "%", "system": "http://unitsofmeasure.org", "code": "%" }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:report-0001",
+      "resource": {
+        "resourceType": "DiagnosticReport",
+        "id": "report-0001",
+        "status": "final",
+        "code": { "text": "Diabetes screening panel" },
+        "subject": { "reference": "Patient/patient-demo-0001" },
+        "issued": "2026-10-08T10:00:00+05:30",
+        "performer": [{ "reference": "Organization/demo-lab-colombo", "display": "Demo Lab Colombo" }],
+        "result": [
+          { "reference": "Observation/obs-glucose-0001" },
+          { "reference": "Observation/obs-hba1c-0001" }
+        ]
+      }
+    }
+  ]
+}
