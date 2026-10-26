@@ -41,20 +41,25 @@ export async function blockCard(serial, reason) {
 // If the patient has no ACTIVE card (it was already blocked), this just issues a new one.
 // If another desk issued a card for this patient at the same moment, the database
 // refuses the second ACTIVE card; that becomes AppError CARD_CHANGED_CONCURRENTLY.
-export async function replaceCard(patientId, { oldStatus, reason, makeSerial = generateCardSerial }) {
+// Pass `db` (a transaction client) to run inside the caller's transaction, e.g.
+// linking a NIC renews the card in the same transaction. Prisma cannot nest
+// transactions, so without `db` this opens its own.
+export async function replaceCard(patientId, { oldStatus, reason, makeSerial = generateCardSerial, db }) {
   if (oldStatus !== 'BLOCKED' && oldStatus !== 'REPLACED') {
     throw new Error('oldStatus must be BLOCKED or REPLACED');
   }
   if (!reason) throw new Error('A reason is required to replace a card');
 
-  try {
-    return await prisma.$transaction(async (tx) => {
-      await tx.card.updateMany({
-        where: { patientId, status: 'ACTIVE' },
-        data: { status: oldStatus, endedAt: new Date(), endedReason: reason },
-      });
-      return issueCard(patientId, { db: tx, makeSerial });
+  const endOldAndIssueNew = async (tx) => {
+    await tx.card.updateMany({
+      where: { patientId, status: 'ACTIVE' },
+      data: { status: oldStatus, endedAt: new Date(), endedReason: reason },
     });
+    return issueCard(patientId, { db: tx, makeSerial });
+  };
+
+  try {
+    return db ? await endOldAndIssueNew(db) : await prisma.$transaction(endOldAndIssueNew);
   } catch (err) {
     // P2002 = unique rule broken. target ["patientId"] means the
     // "one ACTIVE card per patient" index (a serial clash has target ["serial"]).
@@ -66,4 +71,10 @@ export async function replaceCard(patientId, { oldStatus, reason, makeSerial = g
     }
     throw err;
   }
+}
+
+// What the card's QR code contains: ONLY the Health ID and the card serial
+// (CLAUDE.md Phase 2). No name, no medical data.
+export function cardQrPayload(healthId, serial) {
+  return JSON.stringify({ healthId, serial });
 }

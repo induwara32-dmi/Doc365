@@ -70,6 +70,13 @@ This is a portfolio/learning project by a second-year Software Technology studen
   `GuardianLink_not_own_guardian`. Check every new migration does not drop them.
 - Patient columns are the source of truth. The `fhir` JSON is always rebuilt from the
   columns in the same transaction, never edited on its own.
+- GuardianLink rows are never deleted (not even at 16). Guardian access ending at 16
+  is calculated from the child's dateOfBirth (`guardianAccessActive()` in
+  `src/patients/age.js`); the link stays as history.
+- Dates of birth are date-only values (UTC midnight). "Today" is the date in Sri Lanka
+  (`todayInSriLanka()`); services take an optional `today` so tests use a fixed date.
+- `npm run seed` (dev database) is idempotent: fixed Luhn-valid Health IDs
+  (DEMO-100001-7, DEMO-100002-5, DEMO-100003-3), every step skipped if already done.
 - Card serials come from `crypto` random bytes, never counters. Issuing a replacement
   card blocks/replaces the old card and creates the new one in one transaction.
 - The `nic` column is plain nullable unique text (no migration for NIC rules). Every NIC
@@ -106,7 +113,7 @@ web/                  Next.js portals (Phase 7)
 - Check: `npm run keys` then `npm run demo:signing` shows VERIFIED, TAMPERED, VERIFIED, PATIENT_UPLOADED.
 - In later phases, move facility public keys from `registry/facilities.json` into the database.
 
-### Phase 2: Patients and health cards
+### Phase 2: Patients and health cards: DONE
 - Tables: Patient (FHIR Patient JSON + Health ID + date of birth + NIC optional),
   Card (serial, status: ACTIVE / BLOCKED / REPLACED), Guardian links.
 - Health ID generator with Luhn check digit (`DEMO-123456-6`).
@@ -158,5 +165,7 @@ web/                  Next.js portals (Phase 7)
 - Doctor portal (scan card, emergency summary, timeline, trends, actions, who-viewed).
 - Facility portal (labs/hospitals upload results), pharmacy portal, registration desk,
   patient portal, admin portal.
+- Install `qrcode` here to draw card QR images. Phase 2 only prints the payload
+  (`cardQrPayload()`: Health ID + card serial only).
 - Done when: the full story works in the browser: register baby → lab uploads result →
   doctor scans card → sees verified result → writes prescription → pharmacy dispenses.

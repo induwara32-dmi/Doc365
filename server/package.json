@@ -17,6 +17,7 @@
     "db:test:reset": "node --env-file=../.env.test scripts/reset-test-db.js",
     "pretest": "npm run db:test:migrate",
     "test": "node --env-file=../.env.test --test \"test/**/*.test.js\"",
+    "seed": "node --env-file=../.env scripts/seed.js",
     "keys": "node scripts/generate-lab-keys.js",
     "demo:signing": "node scripts/demo-signing.js"
   },
