@@ -13,6 +13,9 @@
     "prisma": "node --env-file=../.env node_modules/prisma/build/index.js",
     "db:generate": "npm run prisma -- generate",
     "db:migrate": "npm run prisma -- migrate dev",
+    "db:test:migrate": "node --env-file=../.env.test node_modules/prisma/build/index.js migrate deploy",
+    "pretest": "npm run db:test:migrate",
+    "test": "node --env-file=../.env.test --test \"test/**/*.test.js\"",
     "keys": "node scripts/generate-lab-keys.js",
     "demo:signing": "node scripts/demo-signing.js"
   },

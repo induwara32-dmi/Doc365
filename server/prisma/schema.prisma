@@ -1,5 +1,5 @@
 // Prisma schema: describes the Doc365 database.
-// Tables (models) are added phase by phase, starting in Phase 2.
+// Tables (models) are added phase by phase. See docs/DESIGN.md.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,4 +9,81 @@ datasource db {
   provider = "postgresql"
   // Read from .env (DATABASE_URL). Never write the password here.
   url      = env("DATABASE_URL")
+}
+
+// ---------- Phase 2: patients and health cards ----------
+
+// One row per person, for life (DESIGN.md section 1).
+// There is no age column: age is always calculated from dateOfBirth.
+model Patient {
+  id          String    @id @default(uuid()) @db.Uuid
+  // Demo Health ID, e.g. DEMO-123456-7 (last digit is a Luhn check digit)
+  healthId    String    @unique
+  // Linked at age 16 or later. Empty for children.
+  nic         String?   @unique
+  // Kept as its own column so we can calculate age and check the NIC age rule.
+  dateOfBirth DateTime  @db.Date
+  // The full FHIR R4 Patient resource (name, gender, identifiers...), stored as JSONB.
+  // The columns are the source of truth: this JSON is always rebuilt from them
+  // in the same transaction, never edited on its own.
+  fhir        Json
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  cards       Card[]
+  // Links where this patient is the child
+  guardians   GuardianLink[] @relation("child")
+  // Links where this patient is the guardian
+  children    GuardianLink[] @relation("guardian")
+}
+
+enum CardStatus {
+  ACTIVE   // the card in use; at most one per patient
+  BLOCKED  // lost or stolen: scanning it is refused
+  REPLACED // swapped for a new card (e.g. renewal with new photo at 16)
+}
+
+// A physical health card. The card is only a key: it holds no medical data.
+// Its QR code contains only the patient's Health ID and this card's serial.
+model Card {
+  id           String     @id @default(uuid()) @db.Uuid
+  // Made from crypto random bytes (never a counter), printed on the card and in the QR code
+  serial       String     @unique
+  patientId    String     @db.Uuid
+  patient      Patient    @relation(fields: [patientId], references: [id])
+  status       CardStatus @default(ACTIVE)
+  issuedAt     DateTime   @default(now())
+  // When and why the card stopped being ACTIVE (empty while ACTIVE)
+  endedAt      DateTime?
+  endedReason  String?
+
+  @@index([patientId])
+  // Also in the migration SQL (Prisma cannot express it here):
+  // unique index "Card_one_active_per_patient" = at most one ACTIVE card per patient.
+}
+
+enum GuardianRelationship {
+  MOTHER
+  FATHER
+  LEGAL_GUARDIAN
+}
+
+// Links a child to a guardian. Both are patients with their own Health IDs.
+// Guardian access to the child's record ends at age 16; that is calculated
+// from the child's dateOfBirth, never stored.
+model GuardianLink {
+  id           String               @id @default(uuid()) @db.Uuid
+  childId      String               @db.Uuid
+  child        Patient              @relation("child", fields: [childId], references: [id])
+  guardianId   String               @db.Uuid
+  guardian     Patient              @relation("guardian", fields: [guardianId], references: [id])
+  relationship GuardianRelationship
+  createdAt    DateTime             @default(now())
+
+  // The same guardian cannot be linked to the same child twice
+  @@unique([childId, guardianId])
+  // Fast lookup of "which children does this guardian have?"
+  @@index([guardianId])
+  // Also in the migration SQL (Prisma cannot express it here):
+  // CHECK "GuardianLink_not_own_guardian" = a patient cannot be their own guardian.
 }

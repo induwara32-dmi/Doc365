@@ -49,6 +49,25 @@ This is a portfolio/learning project by a second-year Software Technology studen
   Do not run `npm audit fix --force`.
 - Local development uses PostgreSQL 18 on Windows (no Docker); `docker-compose.yml` is
   kept as an option.
+- Always create migrations with `--create-only` first, show the SQL, and apply only
+  after approval.
+- Tests run on a separate `doc365_test` database, never the dev database. Settings are
+  in `.env.test` (gitignored; copy from the committed `.env.test.example`).
+  `npm test` first runs `migrate deploy` on the test database (`pretest`), then runs
+  `test/**/*.test.js`. Every test file imports `test/guard.js` first; it refuses to run
+  unless the database name ends in `_test`.
+- Tests never delete data (the audit log becomes append-only in Phase 3). They use
+  random IDs (e.g. `DEMO-TEST-<uuid>`) so runs never clash.
+- Hand-written SQL in the Phase 2 migration (Prisma cannot express it):
+  partial unique index `Card_one_active_per_patient` and CHECK
+  `GuardianLink_not_own_guardian`. Check every new migration does not drop them.
+- Patient columns are the source of truth. The `fhir` JSON is always rebuilt from the
+  columns in the same transaction, never edited on its own.
+- Card serials come from `crypto` random bytes, never counters. Issuing a replacement
+  card blocks/replaces the old card and creates the new one in one transaction.
+- The `nic` column is plain nullable unique text. Old NICs (9 digits + V/X) are
+  normalized to 12 digits before saving, using a conversion rule verified from an
+  official source.
 
 ## Folder structure
 ```
@@ -86,7 +105,11 @@ web/                  Next.js portals (Phase 7)
 - Register a newborn (with guardian), link NIC at 16, block and reissue a lost card.
 - Card QR contains ONLY Health ID + card serial. Age is computed from date of birth, never stored.
 - Done when: a seed script registers 3 fake patients (a baby, a teenager, an adult)
-  and prints their cards' QR payloads.
+  and prints their cards' QR payloads, AND `npm test` passes these database tests
+  (`server/test/db-rules.test.js`), which must fail if a migration drops the rules:
+  - creating a second ACTIVE card for the same patient fails
+  - a GuardianLink where childId equals guardianId fails
+  - replacing a card leaves exactly one ACTIVE card and the old one BLOCKED
 
 ### Phase 3: Facilities, accounts and roles
 - Tables: Facility (type: HOSPITAL / LAB / CLINIC / PHARMACY, public key), User (person,

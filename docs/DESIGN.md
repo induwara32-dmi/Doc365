@@ -32,6 +32,12 @@ If code and this file disagree, ask before changing either.
   same record and the card is renewed with a new photo. One record for life.
 - Demo Health ID format: `DEMO-` + 6 digits + `-` + check digit (Luhn).
   The DEMO prefix makes sure nobody mistakes it for a real PHN.
+- The photo matters for security: when a card is scanned without a PIN, staff use
+  the photo to confirm the card holder is the patient. The prototype skips photos in
+  Phase 2; a nullable `photoUrl` column on Card can be added in a later phase.
+- NIC is stored as plain text with no format check: Sri Lanka has old NICs
+  (9 digits + V/X) and new 12-digit NICs, and one person can have both.
+  Demo data uses the `DEMO-NIC-` prefix so it can never match a real NIC.
 
 ### 2. The "three keys" rule
 A full record opens only when ALL three are present:

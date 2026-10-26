@@ -1,6 +1,7 @@
 # Secrets: never commit
 **/keys/
 .env
+.env.test
 *.pem
 
 node_modules/
