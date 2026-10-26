@@ -3,6 +3,7 @@
 import { randomBytes } from 'node:crypto';
 import { prisma } from '../db.js';
 import { AppError } from '../errors.js';
+import { requireActor, writeAudit } from '../audit/audit-log.js';
 
 // 6 random bytes (48 bits) shown as 12 hex characters, e.g. CARD-7F3A-9C21-0B4E.
 // Random, never a counter, so nobody can guess another card's serial.
@@ -22,14 +23,33 @@ export async function issueCard(patientId, { db = prisma, makeSerial = generateC
 }
 
 // Block a lost or stolen card. Scanning it is refused from now on.
-export async function blockCard(serial, reason) {
-  if (!reason) throw new Error('A reason is required to block a card');
+// The block and its audit row are saved in ONE transaction.
+export async function blockCard(serial, reason, actor) {
+  requireActor(actor);
+  if (!reason) throw new AppError('INVALID_REQUEST', 'A reason is required to block a card');
 
-  const result = await prisma.card.updateMany({
-    where: { serial, status: 'ACTIVE' },
-    data: { status: 'BLOCKED', endedAt: new Date(), endedReason: reason },
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.card.updateMany({
+      where: { serial, status: 'ACTIVE' },
+      data: { status: 'BLOCKED', endedAt: new Date(), endedReason: reason },
+    });
+    if (result.count === 0) throw new AppError('CARD_NOT_ACTIVE', `No ACTIVE card with serial ${serial}`);
+
+    const card = await tx.card.findUnique({ where: { serial } });
+    await writeAudit(
+      actor,
+      {
+        action: 'card.block',
+        patientId: card.patientId,
+        targetType: 'Card',
+        targetId: serial,
+        reason,
+        details: { oldStatus: 'ACTIVE', newStatus: 'BLOCKED' },
+      },
+      tx,
+    );
+    return card;
   });
-  if (result.count === 0) throw new Error(`No ACTIVE card with serial ${serial}`);
 }
 
 // Give a patient a new card.
@@ -44,18 +64,38 @@ export async function blockCard(serial, reason) {
 // Pass `db` (a transaction client) to run inside the caller's transaction, e.g.
 // linking a NIC renews the card in the same transaction. Prisma cannot nest
 // transactions, so without `db` this opens its own.
-export async function replaceCard(patientId, { oldStatus, reason, makeSerial = generateCardSerial, db }) {
+// The change and its audit row ("card.replace") are saved in the same transaction.
+export async function replaceCard(patientId, { oldStatus, reason, actor, makeSerial = generateCardSerial, db }) {
+  requireActor(actor);
   if (oldStatus !== 'BLOCKED' && oldStatus !== 'REPLACED') {
-    throw new Error('oldStatus must be BLOCKED or REPLACED');
+    throw new AppError('INVALID_REQUEST', 'oldStatus must be BLOCKED or REPLACED');
   }
-  if (!reason) throw new Error('A reason is required to replace a card');
+  if (!reason) throw new AppError('INVALID_REQUEST', 'A reason is required to replace a card');
 
   const endOldAndIssueNew = async (tx) => {
+    const oldCard = await tx.card.findFirst({ where: { patientId, status: 'ACTIVE' } });
     await tx.card.updateMany({
       where: { patientId, status: 'ACTIVE' },
       data: { status: oldStatus, endedAt: new Date(), endedReason: reason },
     });
-    return issueCard(patientId, { db: tx, makeSerial });
+    const newCard = await issueCard(patientId, { db: tx, makeSerial });
+    await writeAudit(
+      actor,
+      {
+        action: 'card.replace',
+        patientId,
+        targetType: 'Card',
+        targetId: newCard.serial,
+        reason,
+        details: {
+          oldSerial: oldCard?.serial ?? null, // null if it was already blocked
+          oldCardNewStatus: oldCard ? oldStatus : null,
+          newSerial: newCard.serial,
+        },
+      },
+      tx,
+    );
+    return newCard;
   };
 
   try {

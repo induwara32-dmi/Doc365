@@ -16,11 +16,11 @@ datasource db {
 // One row per person, for life (DESIGN.md section 1).
 // There is no age column: age is always calculated from dateOfBirth.
 model Patient {
-  id          String    @id @default(uuid()) @db.Uuid
+  id          String   @id @default(uuid()) @db.Uuid
   // Demo Health ID, e.g. DEMO-123456-6 (last digit is a Luhn check digit)
-  healthId    String    @unique
+  healthId    String   @unique
   // Linked at age 16 or later. Empty for children.
-  nic         String?   @unique
+  nic         String?  @unique
   // Staff confirm name and date of birth after every lookup (DESIGN.md section 1).
   // A newborn may not have a given name yet, so it is optional.
   givenName   String?
@@ -31,19 +31,22 @@ model Patient {
   fullName    String?
   sex         Sex
   // Kept as its own column so we can calculate age and check the NIC age rule.
-  dateOfBirth DateTime  @db.Date
+  dateOfBirth DateTime @db.Date
   // The full FHIR R4 Patient resource (name, gender, identifiers...), stored as JSONB.
   // The columns are the source of truth: this JSON is always rebuilt from them
   // in the same transaction, never edited on its own.
   fhir        Json
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  cards       Card[]
+  cards     Card[]
   // Links where this patient is the child
-  guardians   GuardianLink[] @relation("child")
+  guardians GuardianLink[] @relation("child")
   // Links where this patient is the guardian
-  children    GuardianLink[] @relation("guardian")
+  children  GuardianLink[] @relation("guardian")
+  // Phase 3: the patient's own login (PATIENT / GUARDIAN), and every audit row about them
+  user      User?
+  auditLogs AuditLog[]
 }
 
 // FHIR R4 administrative gender values, lowercase exactly as FHIR uses them,
@@ -56,28 +59,28 @@ enum Sex {
 }
 
 enum CardStatus {
-  ACTIVE   // the card in use; at most one per patient
-  BLOCKED  // lost or stolen: scanning it is refused
+  ACTIVE // the card in use; at most one per patient
+  BLOCKED // lost or stolen: scanning it is refused
   REPLACED // swapped for a new card (e.g. renewal with new photo at 16)
 }
 
 // A physical health card. The card is only a key: it holds no medical data.
 // Its QR code contains only the patient's Health ID and this card's serial.
 model Card {
-  id           String     @id @default(uuid()) @db.Uuid
+  id          String     @id @default(uuid()) @db.Uuid
   // Made from crypto random bytes (never a counter), printed on the card and in the QR code
-  serial       String     @unique
-  patientId    String     @db.Uuid
-  patient      Patient    @relation(fields: [patientId], references: [id])
-  status       CardStatus @default(ACTIVE)
-  issuedAt     DateTime   @default(now())
+  serial      String     @unique
+  patientId   String     @db.Uuid
+  patient     Patient    @relation(fields: [patientId], references: [id])
+  status      CardStatus @default(ACTIVE)
+  issuedAt    DateTime   @default(now())
   // When and why the card stopped being ACTIVE (empty while ACTIVE)
-  endedAt      DateTime?
-  endedReason  String?
-
-  @@index([patientId])
+  endedAt     DateTime?
+  endedReason String?
   // Also in the migration SQL (Prisma cannot express it here):
   // unique index "Card_one_active_per_patient" = at most one ACTIVE card per patient.
+
+  @@index([patientId])
 }
 
 enum GuardianRelationship {
@@ -97,11 +100,140 @@ model GuardianLink {
   guardian     Patient              @relation("guardian", fields: [guardianId], references: [id])
   relationship GuardianRelationship
   createdAt    DateTime             @default(now())
+  // Also in the migration SQL (Prisma cannot express it here):
+  // CHECK "GuardianLink_not_own_guardian" = a patient cannot be their own guardian.
 
   // The same guardian cannot be linked to the same child twice
   @@unique([childId, guardianId])
   // Fast lookup of "which children does this guardian have?"
   @@index([guardianId])
-  // Also in the migration SQL (Prisma cannot express it here):
-  // CHECK "GuardianLink_not_own_guardian" = a patient cannot be their own guardian.
+}
+
+// ---------- Phase 3: facilities, accounts and roles ----------
+
+enum FacilityType {
+  HOSPITAL
+  LAB
+  CLINIC
+  PHARMACY
+  AUTHORITY // e.g. "Demo Ministry of Health": where ADMIN memberships live
+}
+
+// A registered facility. Replaces registry/facilities.json (Phase 1).
+model Facility {
+  id           String       @id @default(uuid()) @db.Uuid
+  // Short stable name, used in FHIR references, e.g. "demo-lab-colombo"
+  code         String       @unique
+  name         String
+  type         FacilityType
+  // Ed25519 public key (PEM) to verify records this facility signed. The private
+  // key never enters the database (keys/ folder, gitignored). An AUTHORITY signs
+  // no records, so it may have none; every other type must have one
+  // (hand-written CHECK "Facility_key_required" in the migration SQL).
+  publicKeyPem String?
+  createdAt    DateTime     @default(now())
+
+  memberships StaffMembership[]
+  auditLogs   AuditLog[]
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED // ADMIN blocked the account: login and every request are refused
+}
+
+// The PERSON who logs in (DESIGN.md section 5). One account per person, never shared.
+// What they may do comes from where they log in:
+// - as staff: one of their StaffMemberships (chosen at login)
+// - as a patient: their own record (patientId), plus guardian access to their
+//   children, calculated from GuardianLink and the child's age
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  username     String     @unique
+  // bcrypt hash. Never logged, never returned by the API.
+  passwordHash String
+  status       UserStatus @default(ACTIVE)
+  fullName     String
+  // The person's own patient record, if they have one (a doctor can also be a patient)
+  patientId    String?    @unique @db.Uuid
+  patient      Patient?   @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdAt    DateTime   @default(now())
+
+  memberships StaffMembership[]
+  auditLogs   AuditLog[]
+}
+
+// Staff roles from DESIGN.md section 5. PATIENT is not here: patient access comes
+// from User.patientId. What each role may do is in ONE file: src/auth/permissions.js.
+enum StaffRole {
+  LAB_STAFF
+  HOSPITAL_STAFF
+  DOCTOR
+  PHARMACIST
+  REGISTRAR
+  ADMIN // only in an AUTHORITY facility (checked in code)
+}
+
+enum MembershipStatus {
+  ACTIVE
+  ENDED // the person no longer works there (kept as history)
+  BLOCKED // an ADMIN blocked this membership
+}
+
+// A person working in a role at a facility. A doctor in a government hospital who
+// also channels at a private hospital has two memberships.
+model StaffMembership {
+  id         String           @id @default(uuid()) @db.Uuid
+  userId     String           @db.Uuid
+  user       User             @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  facilityId String           @db.Uuid
+  facility   Facility         @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  role       StaffRole
+  // For the audit label: "Demo Lab Colombo, MLT A. Silva"
+  jobTitle   String?
+  status     MembershipStatus @default(ACTIVE)
+  createdAt  DateTime         @default(now())
+
+  auditLogs AuditLog[]
+
+  @@unique([userId, facilityId, role])
+  @@index([facilityId])
+}
+
+// Append-only record of who did what, when and why (DESIGN.md sections 5 and 6).
+// The database itself refuses UPDATE, DELETE and TRUNCATE (hand-written triggers in
+// the migration SQL), so even our own code cannot change it.
+// Relations are Restrict: an audit row pins what it points to (SET NULL or CASCADE
+// would try to UPDATE the row, which the trigger refuses).
+model AuditLog {
+  id           String           @id @default(uuid()) @db.Uuid
+  at           DateTime         @default(now())
+  // Who: the user, and the membership they acted in (empty when acting as a
+  // patient or for a failed login), plus a readable snapshot that stays correct
+  // even if the person later changes name or job title
+  userId       String?          @db.Uuid
+  user         User?            @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  membershipId String?          @db.Uuid
+  membership   StaffMembership? @relation(fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  facilityId   String?          @db.Uuid
+  facility     Facility?        @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  // e.g. "Demo Lab Colombo, MLT A. Silva", "Patient K. Jayasinghe", "unknown username"
+  actorLabel   String
+  // What: e.g. "card.block", "card.replace", "patient.view", "auth.login_failed"
+  action       String
+  // Whose data, if any ("who viewed my record" in Phase 5)
+  patientId    String?          @db.Uuid
+  patient      Patient?         @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  // The thing acted on, e.g. targetType "Card", targetId = the card serial
+  targetType   String?
+  targetId     String?
+  // Why (required for break-glass in Phase 5)
+  reason       String?
+  // Extra facts, e.g. { "oldStatus": "ACTIVE", "newStatus": "BLOCKED" }.
+  // Never secrets, and never text typed into a login form.
+  details      Json?
+
+  @@index([patientId, at])
+  @@index([userId, at])
+  @@index([facilityId, at])
 }

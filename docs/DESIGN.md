@@ -100,13 +100,49 @@ Emergency summary = blood group, allergies, long-term conditions, current medici
 | HOSPITAL_STAFF | Full record via three keys | Admissions, discharge summaries, imaging reports | Own facility's records only |
 | DOCTOR | Full record via three keys | Visit notes, e-prescriptions, test orders | Own entries only |
 | PHARMACIST | Scanned prescription only | Dispense record | No |
-| PATIENT | Own full record + who-viewed log | Patient uploads | No |
-| GUARDIAN | Child's record until age 16; or as family representative | Same as patient | No |
 | REGISTRAR | Patient demographics | New patients, cards, NIC linking | Demographics only |
 | ADMIN | Audit logs | Facilities, staff accounts | Block accounts and cards |
+| *PATIENT (access, not a role)* | Own full record + who-viewed log | Patient uploads | No |
+| *Guardian (access, not a role)* | Child's record until age 16 | Same as patient, for the child | No |
 
-Accounts are per PERSON, inside a facility. The audit log shows
-"Demo Lab Colombo, MLT [name]", not just the lab.
+**Accounts: one per PERSON, roles per membership.** In Sri Lanka one person often
+works in several places (a doctor in a government hospital who also channels at
+private hospitals), a doctor can also be a patient, and a mother is both a patient
+and a guardian. So:
+- A **User** is the person who logs in (username, password, name). A user may be
+  linked to their own patient record.
+- A **StaffMembership** is one role at one facility (user + facility + role + job
+  title + status). The roles in the table above are membership roles. One person can
+  have several memberships; at login they choose one, and everything they do in that
+  session is checked and audited for that membership.
+- **ADMIN** is a membership in an AUTHORITY facility (e.g. "Demo Ministry of Health").
+- Each staff role is only allowed at certain facility types:
+
+  | Role | Allowed facility types |
+  |---|---|
+  | DOCTOR | HOSPITAL, CLINIC |
+  | HOSPITAL_STAFF | HOSPITAL |
+  | LAB_STAFF | LAB |
+  | PHARMACIST | PHARMACY |
+  | REGISTRAR | HOSPITAL, AUTHORITY |
+  | ADMIN | AUTHORITY |
+
+  This is checked in code (memberships are created rarely, by an admin, through one
+  code path). The pairs are data in the permission matrix file
+  (`src/auth/permissions.js`), next to the role permissions.
+- A hospital's in-house lab and pharmacy are registered as **separate facilities**
+  (type LAB and PHARMACY), each with its own signing key. So a lab result from the
+  hospital lab is signed by the lab, and LAB_STAFF there are members of the lab, not
+  of the hospital.
+- **PATIENT** is not a membership role: a user linked to a patient record can log in
+  as that patient and see their own record.
+- **Guardian** is not a role either: a patient user sees a child's record while a
+  GuardianLink exists AND the child is under 16 (calculated from the child's date of
+  birth every time; the link is never deleted). Adult family representatives
+  (proxy access for adults) are not in the prototype.
+
+The audit log shows the membership, e.g. "Demo Lab Colombo, MLT [name]", not just
+the lab or just the person.
 
 ### 6. Patient controls (app OR hospital service desk; many people have no smartphone)
 - Block a specific facility or doctor.
@@ -135,4 +171,9 @@ Accounts are per PERSON, inside a facility. The audit log shows
   system would need a longer ID; also, random IDs get more clashes (retries) as the
   table fills up.
 - Real SMS sending (log to console instead).
-- Production security hardening, high availability.
+- Production security hardening, high availability. In particular:
+  - No login lockout or rate limiting (failed logins are audited).
+  - The AuditLog trigger stops every normal query, including our own code, but the
+    table owner (the `doc365` database user) could still deliberately drop the
+    trigger. Real protection needs the app to connect as a separate database user
+    that does not own the tables.

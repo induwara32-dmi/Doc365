@@ -7,6 +7,7 @@
 // Running it twice creates nothing new. Fake data only (DEMO- prefixes).
 
 import { prisma } from "../src/db.js";
+import { systemActor } from "../src/audit/audit-log.js";
 import { registerPatient, registerNewborn, linkNic } from "../src/patients/patient-service.js";
 import { cardQrPayload } from "../src/patients/card-service.js";
 import { isValidHealthId } from "../src/patients/health-id.js";
@@ -43,6 +44,7 @@ for (const person of [ADULT, BABY, TEEN]) {
 }
 
 const today = todayInSriLanka();
+const actor = systemActor("seed");
 
 function exists(healthId) {
   return prisma.patient.findUnique({ where: { healthId } });
@@ -57,7 +59,7 @@ async function seed() {
   if (await exists(adultId)) {
     console.log(`skip   ${adultId} adult already exists`);
   } else {
-    const { warnings } = await registerPatient(adultData, { healthId: adultId, today });
+    const { warnings } = await registerPatient(adultData, { healthId: adultId, today, actor });
     console.log(`create ${adultId} adult`);
     showWarnings(warnings);
   }
@@ -68,7 +70,7 @@ async function seed() {
   } else {
     await registerNewborn(
       { child: babyData, guardianHealthId: adultId, relationship: "MOTHER" },
-      { healthId: babyId, today }
+      { healthId: babyId, today, actor }
     );
     console.log(`create ${babyId} baby (guardian: ${adultId})`);
   }
@@ -78,14 +80,14 @@ async function seed() {
   if (teen) {
     console.log(`skip   ${teenId} teenager already exists`);
   } else {
-    await registerPatient(teenData, { healthId: teenId, today });
+    await registerPatient(teenData, { healthId: teenId, today, actor });
     console.log(`create ${teenId} teenager (no NIC yet)`);
     teen = await exists(teenId);
   }
   if (teen.nic) {
     console.log(`skip   ${teenId} NIC already linked`);
   } else {
-    const { warnings } = await linkNic(teenId, TEEN_NIC, { today });
+    const { warnings } = await linkNic(teenId, TEEN_NIC, { today, actor });
     console.log(`link   ${teenId} NIC linked, card renewed`);
     showWarnings(warnings);
   }

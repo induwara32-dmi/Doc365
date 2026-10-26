@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { prisma } from '../src/db.js';
 import { issueCard, replaceCard } from '../src/patients/card-service.js';
-import { createTestPatient, cardsOf } from './helpers.js';
+import { createTestPatient, cardsOf, TEST_ACTOR } from './helpers.js';
 
 function testSerial() {
   return `TEST-${randomUUID()}`;
@@ -54,7 +54,7 @@ test('replacing a card leaves exactly one ACTIVE card and the old one BLOCKED', 
   const patient = await createTestPatient();
   const oldCard = await issueCard(patient.id);
 
-  const newCard = await replaceCard(patient.id, { oldStatus: 'BLOCKED', reason: 'Lost on bus' });
+  const newCard = await replaceCard(patient.id, { actor: TEST_ACTOR, oldStatus: 'BLOCKED', reason: 'Lost on bus' });
 
   const cards = await cardsOf(patient.id);
   assert.equal(cards.length, 2);

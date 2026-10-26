@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { prisma } from '../src/db.js';
 import { generateCardSerial, issueCard, blockCard, replaceCard } from '../src/patients/card-service.js';
 import { AppError } from '../src/errors.js';
-import { createTestPatient, cardsOf } from './helpers.js';
+import { createTestPatient, cardsOf, TEST_ACTOR } from './helpers.js';
 
 after(async () => {
   await prisma.$disconnect();
@@ -32,7 +32,7 @@ test('renewal marks the old card REPLACED (not BLOCKED)', async () => {
   const patient = await createTestPatient();
   const oldCard = await issueCard(patient.id);
 
-  await replaceCard(patient.id, { oldStatus: 'REPLACED', reason: 'Renewal with new photo at 16' });
+  await replaceCard(patient.id, { actor: TEST_ACTOR, oldStatus: 'REPLACED', reason: 'Renewal with new photo at 16' });
 
   const old = (await cardsOf(patient.id)).find((c) => c.id === oldCard.id);
   assert.equal(old.status, 'REPLACED');
@@ -42,9 +42,9 @@ test('a card blocked by phone stays BLOCKED when the new card is issued later', 
   const patient = await createTestPatient();
   const lost = await issueCard(patient.id);
 
-  await blockCard(lost.serial, 'Reported stolen by phone');
+  await blockCard(lost.serial, 'Reported stolen by phone', TEST_ACTOR);
   // Later, at the service desk:
-  await replaceCard(patient.id, { oldStatus: 'BLOCKED', reason: 'New card after theft' });
+  await replaceCard(patient.id, { actor: TEST_ACTOR, oldStatus: 'BLOCKED', reason: 'New card after theft' });
 
   const cards = await cardsOf(patient.id);
   const old = cards.find((c) => c.id === lost.id);
@@ -56,19 +56,19 @@ test('a card blocked by phone stays BLOCKED when the new card is issued later', 
 test('blocking a card that is not ACTIVE fails', async () => {
   const patient = await createTestPatient();
   const card = await issueCard(patient.id);
-  await blockCard(card.serial, 'Lost');
+  await blockCard(card.serial, 'Lost', TEST_ACTOR);
 
-  await assert.rejects(blockCard(card.serial, 'Lost again'), /No ACTIVE card/);
-  await assert.rejects(blockCard('CARD-0000-0000-0000', 'Lost'), /No ACTIVE card/);
+  await assert.rejects(blockCard(card.serial, 'Lost again', TEST_ACTOR), /No ACTIVE card/);
+  await assert.rejects(blockCard('CARD-0000-0000-0000', 'Lost', TEST_ACTOR), /No ACTIVE card/);
 });
 
 test('blocking or replacing without a reason, or with a wrong status, changes nothing', async () => {
   const patient = await createTestPatient();
   const card = await issueCard(patient.id);
 
-  await assert.rejects(blockCard(card.serial, ''), /reason is required/);
-  await assert.rejects(replaceCard(patient.id, { oldStatus: 'BLOCKED' }), /reason is required/);
-  await assert.rejects(replaceCard(patient.id, { oldStatus: 'ACTIVE', reason: 'x' }), /BLOCKED or REPLACED/);
+  await assert.rejects(blockCard(card.serial, '', TEST_ACTOR), /reason is required/);
+  await assert.rejects(replaceCard(patient.id, { actor: TEST_ACTOR, oldStatus: 'BLOCKED' }), /reason is required/);
+  await assert.rejects(replaceCard(patient.id, { actor: TEST_ACTOR, oldStatus: 'ACTIVE', reason: 'x' }), /BLOCKED or REPLACED/);
 
   const cards = await cardsOf(patient.id);
   assert.equal(cards.length, 1);
@@ -84,6 +84,7 @@ test('if creating the new card fails, the old card stays ACTIVE (rollback)', asy
   // old card was already ended inside the transaction.
   await assert.rejects(
     replaceCard(patient.id, {
+    actor: TEST_ACTOR,
       oldStatus: 'BLOCKED',
       reason: 'Lost',
       makeSerial: () => oldCard.serial,
@@ -105,11 +106,12 @@ test('losing a race with another desk gives CARD_CHANGED_CONCURRENTLY', async ()
   // Start with the card already blocked by phone, so desk A's transaction
   // locks no card row. (If it did, desk B below would wait for desk A while
   // desk A waits for desk B: a deadlock.)
-  await blockCard(lost.serial, 'Reported lost by phone');
+  await blockCard(lost.serial, 'Reported lost by phone', TEST_ACTOR);
 
   // Desk A replaces the card. Just before desk A creates its new card,
   // the injected generator lets desk B issue one first (committed).
   const err = await replaceCard(patient.id, {
+    actor: TEST_ACTOR,
     oldStatus: 'BLOCKED',
     reason: 'Desk A',
     makeSerial: async () => {
@@ -133,8 +135,8 @@ test('two replacements at the same time still leave exactly one ACTIVE card', as
   // Two desks press "replace" at the same moment. One may fail; that is fine,
   // but only with our clear app error. What must never happen is two ACTIVE cards.
   const results = await Promise.allSettled([
-    replaceCard(patient.id, { oldStatus: 'BLOCKED', reason: 'Desk A' }),
-    replaceCard(patient.id, { oldStatus: 'BLOCKED', reason: 'Desk B' }),
+    replaceCard(patient.id, { actor: TEST_ACTOR, oldStatus: 'BLOCKED', reason: 'Desk A' }),
+    replaceCard(patient.id, { actor: TEST_ACTOR, oldStatus: 'BLOCKED', reason: 'Desk B' }),
   ]);
 
   for (const r of results.filter((r) => r.status === 'rejected')) {

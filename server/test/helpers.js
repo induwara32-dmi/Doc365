@@ -1,6 +1,10 @@
 // Shared helpers for tests. Not a test file itself (it does not end in .test.js).
 import { randomInt, randomUUID } from 'node:crypto';
 import { prisma } from '../src/db.js';
+import { systemActor } from '../src/audit/audit-log.js';
+
+// The actor for changes made by tests (audited like any other change)
+export const TEST_ACTOR = systemActor('test');
 
 // A unique family name, so a test can find (or prove there are no) rows it made
 export function uniqueName() {

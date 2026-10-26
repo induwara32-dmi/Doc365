@@ -8,6 +8,7 @@ import { normalizeNic, checkNicAgainstPatient } from './nic.js';
 import { generateHealthId, isValidHealthId } from './health-id.js';
 import { buildFhirPatient } from './fhir-patient.js';
 import { issueCard, replaceCard, generateCardSerial } from './card-service.js';
+import { requireActor, writeAudit } from '../audit/audit-log.js';
 import {
   ageOn,
   parseDate,
@@ -90,8 +91,9 @@ async function createPatientWithCard(tx, columns, makeSerial) {
 // Returns { patient, card, warnings }.
 export async function registerPatient(
   data,
-  { healthId, today = todayInSriLanka(), makeSerial = generateCardSerial } = {},
+  { actor, healthId, today = todayInSriLanka(), makeSerial = generateCardSerial } = {},
 ) {
+  requireActor(actor);
   const columns = cleanDemographics(data, today);
   let warnings = [];
 
@@ -106,9 +108,25 @@ export async function registerPatient(
 
   try {
     const result = await withNewHealthId(healthId, (newHealthId) =>
-      prisma.$transaction((tx) =>
-        createPatientWithCard(tx, { id: randomUUID(), healthId: newHealthId, ...columns }, makeSerial),
-      ),
+      prisma.$transaction(async (tx) => {
+        const created = await createPatientWithCard(
+          tx,
+          { id: randomUUID(), healthId: newHealthId, ...columns },
+          makeSerial,
+        );
+        await writeAudit(
+          actor,
+          {
+            action: 'patient.register',
+            patientId: created.patient.id,
+            targetType: 'Card',
+            targetId: created.card.serial,
+            details: { withNic: Boolean(columns.nic), warnings: warnings.map((w) => w.code) },
+          },
+          tx,
+        );
+        return created;
+      }),
     );
     return { ...result, warnings };
   } catch (err) {
@@ -122,8 +140,9 @@ export async function registerPatient(
 // Returns { patient, card, guardianLink }.
 export async function registerNewborn(
   { child, guardianHealthId, relationship },
-  { healthId, today = todayInSriLanka(), makeSerial = generateCardSerial } = {},
+  { actor, healthId, today = todayInSriLanka(), makeSerial = generateCardSerial } = {},
 ) {
+  requireActor(actor);
   const columns = cleanDemographics(child, today);
   if (child.nic) throw invalidData('A child registered with a guardian cannot have a NIC yet');
   if (ageOn(columns.dateOfBirth, today) >= GUARDIAN_ACCESS_ENDS_AT) {
@@ -152,6 +171,17 @@ export async function registerNewborn(
       const guardianLink = await tx.guardianLink.create({
         data: { childId: patient.id, guardianId: guardian.id, relationship },
       });
+      await writeAudit(
+        actor,
+        {
+          action: 'patient.register_newborn',
+          patientId: patient.id,
+          targetType: 'Card',
+          targetId: card.serial,
+          details: { guardianPatientId: guardian.id, relationship },
+        },
+        tx,
+      );
       return { patient, card, guardianLink };
     }),
   );
@@ -165,8 +195,9 @@ export async function registerNewborn(
 export async function linkNic(
   healthId,
   nic,
-  { today = todayInSriLanka(), makeSerial = generateCardSerial } = {},
+  { actor, today = todayInSriLanka(), makeSerial = generateCardSerial } = {},
 ) {
+  requireActor(actor);
   try {
     return await prisma.$transaction(async (tx) => {
       const patient = await tx.patient.findUnique({ where: { healthId } });
@@ -183,9 +214,16 @@ export async function linkNic(
         where: { id: patient.id },
         data: { nic: normalized, fhir: buildFhirPatient({ ...patient, nic: normalized }) },
       });
+      // The NIC itself is not copied into the audit row; the patientId is enough
+      await writeAudit(
+        actor,
+        { action: 'patient.link_nic', patientId: patient.id, details: { warnings: warnings.map((w) => w.code) } },
+        tx,
+      );
       const card = await replaceCard(patient.id, {
         oldStatus: 'REPLACED',
         reason: 'Renewed with new photo when NIC was linked at 16',
+        actor,
         makeSerial,
         db: tx,
       });

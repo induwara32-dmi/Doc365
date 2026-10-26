@@ -8,7 +8,7 @@ import { AppError } from '../src/errors.js';
 import { registerPatient, registerNewborn, linkNic } from '../src/patients/patient-service.js';
 import { buildFhirPatient, NIC_SYSTEM } from '../src/patients/fhir-patient.js';
 import { guardianAccessActive } from '../src/patients/age.js';
-import { createTestPatient, cardsOf, uniqueName, randomBirthAndNic } from './helpers.js';
+import { createTestPatient, cardsOf, uniqueName, randomBirthAndNic, TEST_ACTOR } from './helpers.js';
 
 const TODAY = new Date('2026-10-26');
 
@@ -45,7 +45,7 @@ test('register an adult with an old-form NIC: saved normalized, FHIR from column
 
   const { patient, card, warnings } = await registerPatient(
     { givenName: 'Nimal', familyName: uniqueName(), sex: 'male', dateOfBirth, nic: oldNic },
-    { today: TODAY },
+    { actor: TEST_ACTOR, today: TODAY },
   );
 
   assert.equal(patient.nic, newNic);
@@ -61,7 +61,7 @@ test('a NIC that encodes the other sex is saved, with a warning for staff', asyn
 
   const { patient, warnings } = await registerPatient(
     { familyName: uniqueName(), sex: 'male', dateOfBirth, nic },
-    { today: TODAY },
+    { actor: TEST_ACTOR, today: TODAY },
   );
 
   assert.equal(patient.nic, nic);
@@ -72,11 +72,11 @@ test('invalid details are rejected and nothing is saved', async () => {
   const familyName = uniqueName();
   const good = { familyName, sex: 'female', dateOfBirth: '1990-04-01' };
 
-  await assertAppError(registerPatient({ ...good, familyName: '  ' }, { today: TODAY }), 'INVALID_PATIENT_DATA');
-  await assertAppError(registerPatient({ ...good, sex: 'F' }, { today: TODAY }), 'INVALID_PATIENT_DATA');
-  await assertAppError(registerPatient({ ...good, dateOfBirth: '1999-02-29' }, { today: TODAY }), 'INVALID_PATIENT_DATA');
-  await assertAppError(registerPatient({ ...good, dateOfBirth: '2026-10-27' }, { today: TODAY }), 'INVALID_PATIENT_DATA');
-  await assertAppError(registerPatient(good, { healthId: 'DEMO-123456-7', today: TODAY }), 'INVALID_PATIENT_DATA');
+  await assertAppError(registerPatient({ ...good, familyName: '  ' }, { actor: TEST_ACTOR, today: TODAY }), 'INVALID_PATIENT_DATA');
+  await assertAppError(registerPatient({ ...good, sex: 'F' }, { actor: TEST_ACTOR, today: TODAY }), 'INVALID_PATIENT_DATA');
+  await assertAppError(registerPatient({ ...good, dateOfBirth: '1999-02-29' }, { actor: TEST_ACTOR, today: TODAY }), 'INVALID_PATIENT_DATA');
+  await assertAppError(registerPatient({ ...good, dateOfBirth: '2026-10-27' }, { actor: TEST_ACTOR, today: TODAY }), 'INVALID_PATIENT_DATA');
+  await assertAppError(registerPatient(good, { healthId: 'DEMO-123456-7', actor: TEST_ACTOR, today: TODAY }), 'INVALID_PATIENT_DATA');
 
   assert.equal(await countByFamilyName(familyName), 0);
 });
@@ -86,7 +86,7 @@ test('a NIC cannot be registered for someone under 16', async () => {
   const { dateOfBirth, nic } = randomBirthAndNic({ fromYear: 2012, toYear: 2015 });
 
   await assertAppError(
-    registerPatient({ familyName, sex: 'male', dateOfBirth, nic }, { today: TODAY }),
+    registerPatient({ familyName, sex: 'male', dateOfBirth, nic }, { actor: TEST_ACTOR, today: TODAY }),
     'TOO_YOUNG_FOR_NIC',
   );
   assert.equal(await countByFamilyName(familyName), 0);
@@ -94,11 +94,11 @@ test('a NIC cannot be registered for someone under 16', async () => {
 
 test('a NIC already linked to another patient is refused with NIC_ALREADY_LINKED', async () => {
   const { dateOfBirth, nic } = randomBirthAndNic({ fromYear: 1960, toYear: 1999 });
-  await registerPatient({ familyName: uniqueName(), sex: 'male', dateOfBirth, nic }, { today: TODAY });
+  await registerPatient({ familyName: uniqueName(), sex: 'male', dateOfBirth, nic }, { actor: TEST_ACTOR, today: TODAY });
 
   const familyName = uniqueName();
   await assertAppError(
-    registerPatient({ familyName, sex: 'male', dateOfBirth, nic }, { today: TODAY }),
+    registerPatient({ familyName, sex: 'male', dateOfBirth, nic }, { actor: TEST_ACTOR, today: TODAY }),
     'NIC_ALREADY_LINKED',
   );
   assert.equal(await countByFamilyName(familyName), 0);
@@ -115,7 +115,7 @@ test('register a newborn: child, ACTIVE card and guardian link are all saved', a
       guardianHealthId: mother.healthId,
       relationship: 'MOTHER',
     },
-    { today: TODAY },
+    { actor: TEST_ACTOR, today: TODAY },
   );
 
   assert.equal(card.status, 'ACTIVE');
@@ -133,11 +133,11 @@ test('a guardian must be 18 or older, and must exist', async () => {
   const seventeen = await createTestPatient({ dateOfBirth: new Date('2009-01-01') });
 
   await assertAppError(
-    registerNewborn({ child, guardianHealthId: seventeen.healthId, relationship: 'MOTHER' }, { today: TODAY }),
+    registerNewborn({ child, guardianHealthId: seventeen.healthId, relationship: 'MOTHER' }, { actor: TEST_ACTOR, today: TODAY }),
     'GUARDIAN_TOO_YOUNG',
   );
   await assertAppError(
-    registerNewborn({ child, guardianHealthId: 'DEMO-000000-0', relationship: 'MOTHER' }, { today: TODAY }),
+    registerNewborn({ child, guardianHealthId: 'DEMO-000000-0', relationship: 'MOTHER' }, { actor: TEST_ACTOR, today: TODAY }),
     'GUARDIAN_NOT_FOUND',
   );
   assert.equal(await countByFamilyName(familyName), 0);
@@ -152,7 +152,7 @@ test('only children under 16 are registered with a guardian', async () => {
         guardianHealthId: mother.healthId,
         relationship: 'MOTHER',
       },
-      { today: TODAY },
+      { actor: TEST_ACTOR, today: TODAY },
     ),
     'TOO_OLD_FOR_GUARDIAN',
   );
@@ -171,7 +171,7 @@ test('newborn rollback: if the card fails, no child and no guardian link are sav
         relationship: 'MOTHER',
       },
       // Inject a serial that already exists, so the card fails AFTER the child was created
-      { today: TODAY, makeSerial: () => existingCard.serial },
+      { actor: TEST_ACTOR, today: TODAY, makeSerial: () => existingCard.serial },
     ),
     (err) => err.code === 'P2002' && err.meta.target.includes('serial'),
   );
@@ -193,7 +193,7 @@ async function childRegisteredAtBirth({ sex = 'male' } = {}) {
       guardianHealthId: mother.healthId,
       relationship: 'MOTHER',
     },
-    { today: new Date(dateOfBirth) },
+    { actor: TEST_ACTOR, today: new Date(dateOfBirth) },
   );
   const sixteenthBirthday = new Date(dateOfBirth);
   sixteenthBirthday.setUTCFullYear(sixteenthBirthday.getUTCFullYear() + 16);
@@ -213,7 +213,7 @@ async function assertNothingChanged(child, firstCard) {
 test('linking a NIC at 16: NIC set, FHIR rebuilt, old card REPLACED, new card ACTIVE', async () => {
   const { child, firstCard, mother, nic, sixteenthBirthday } = await childRegisteredAtBirth();
 
-  const { patient, card, warnings } = await linkNic(child.healthId, nic, { today: sixteenthBirthday });
+  const { patient, card, warnings } = await linkNic(child.healthId, nic, { actor: TEST_ACTOR, today: sixteenthBirthday });
 
   assert.equal(patient.nic, nic);
   assert.deepEqual(warnings, []);
@@ -238,7 +238,7 @@ test('linking a NIC the day before the 16th birthday is refused, nothing changes
   const { child, firstCard, nic, sixteenthBirthday } = await childRegisteredAtBirth();
   const dayBefore = new Date(sixteenthBirthday.getTime() - 86_400_000);
 
-  await assertAppError(linkNic(child.healthId, nic, { today: dayBefore }), 'TOO_YOUNG_FOR_NIC');
+  await assertAppError(linkNic(child.healthId, nic, { actor: TEST_ACTOR, today: dayBefore }), 'TOO_YOUNG_FOR_NIC');
   await assertNothingChanged(child, firstCard);
 });
 
@@ -246,7 +246,7 @@ test('a NIC that does not fit the date of birth is refused, nothing changes', as
   const { child, firstCard, sixteenthBirthday } = await childRegisteredAtBirth();
   const { nic: someoneElsesNic } = randomBirthAndNic({ fromYear: 1970, toYear: 1979 });
 
-  await assertAppError(linkNic(child.healthId, someoneElsesNic, { today: sixteenthBirthday }), 'NIC_DOB_MISMATCH');
+  await assertAppError(linkNic(child.healthId, someoneElsesNic, { actor: TEST_ACTOR, today: sixteenthBirthday }), 'NIC_DOB_MISMATCH');
   await assertNothingChanged(child, firstCard);
 });
 
@@ -254,7 +254,7 @@ test('linkNic rollback: if the card renewal fails, the NIC is not saved', async 
   const { child, firstCard, nic, sixteenthBirthday } = await childRegisteredAtBirth();
 
   await assert.rejects(
-    linkNic(child.healthId, nic, { today: sixteenthBirthday, makeSerial: () => firstCard.serial }),
+    linkNic(child.healthId, nic, { actor: TEST_ACTOR, today: sixteenthBirthday, makeSerial: () => firstCard.serial }),
     (err) => err.code === 'P2002' && err.meta.target.includes('serial'),
   );
   await assertNothingChanged(child, firstCard);
@@ -262,9 +262,9 @@ test('linkNic rollback: if the card renewal fails, the NIC is not saved', async 
 
 test('a NIC cannot be linked twice', async () => {
   const { child, nic, sixteenthBirthday } = await childRegisteredAtBirth();
-  await linkNic(child.healthId, nic, { today: sixteenthBirthday });
+  await linkNic(child.healthId, nic, { actor: TEST_ACTOR, today: sixteenthBirthday });
 
-  await assertAppError(linkNic(child.healthId, nic, { today: sixteenthBirthday }), 'NIC_ALREADY_SET');
+  await assertAppError(linkNic(child.healthId, nic, { actor: TEST_ACTOR, today: sixteenthBirthday }), 'NIC_ALREADY_SET');
 });
 
 // The same NIC with the other sex: +500 added (male -> female) or removed
@@ -279,11 +279,11 @@ test('linking a NIC that encodes the other sex works, with a warning for staff',
   const { child, nic, sixteenthBirthday } = await childRegisteredAtBirth({ sex: 'male' });
   const femaleNic = withOtherSex(nic);
 
-  const { patient, warnings } = await linkNic(child.healthId, femaleNic, { today: sixteenthBirthday });
+  const { patient, warnings } = await linkNic(child.healthId, femaleNic, { actor: TEST_ACTOR, today: sixteenthBirthday });
   assert.equal(patient.nic, femaleNic);
   assert.deepEqual(warnings.map((w) => w.code), ['NIC_SEX_MISMATCH']);
 });
 
 test('linkNic for an unknown Health ID gives PATIENT_NOT_FOUND', async () => {
-  await assertAppError(linkNic('DEMO-000000-0', 'DEMO-NIC-198554200159', { today: TODAY }), 'PATIENT_NOT_FOUND');
+  await assertAppError(linkNic('DEMO-000000-0', 'DEMO-NIC-198554200159', { actor: TEST_ACTOR, today: TODAY }), 'PATIENT_NOT_FOUND');
 });

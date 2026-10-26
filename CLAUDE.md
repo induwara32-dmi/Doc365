@@ -14,6 +14,12 @@ This is a portfolio/learning project by a second-year Software Technology studen
 1. Learning mode: small steps. After creating or changing a file, explain in simple
    English what it does and why. Prefer simple, readable code over clever code.
 2. One phase at a time. Do not start the next phase until I say so.
+   Inside a phase, work through all steps on your own: run the tests and commit after
+   each step that passes. Only stop and ask me for:
+   (a) migration SQL, before applying it,
+   (b) security decisions,
+   (c) anything that conflicts with `docs/DESIGN.md`.
+   Keep explanations short: what you did, what to check, what's next.
 3. Ask before adding any dependency that is not listed in "Tech stack".
 4. Fake data only. Never real people, real NIC numbers or real PHNs. Health IDs use the `DEMO-` prefix.
 5. Secrets: private keys in `keys/`, config in `.env`. Both are gitignored. Never commit them.
@@ -65,6 +71,9 @@ This is a portfolio/learning project by a second-year Software Technology studen
 - `npm run db:test:reset` wipes the test database and re-applies all migrations
   (`scripts/reset-test-db.js`; refuses any database not ending in `_test`). The user
   runs it, not Claude (Prisma blocks `migrate reset` when run by an AI agent).
+  The AuditLog triggers block UPDATE, DELETE and TRUNCATE, but a reset drops the whole
+  schema (tables, triggers and all), which triggers cannot block. So the test database
+  can always be reset. Never reset a database with real data.
 - Hand-written SQL in the Phase 2 migration (Prisma cannot express it):
   partial unique index `Card_one_active_per_patient` and CHECK
   `GuardianLink_not_own_guardian`. Check every new migration does not drop them.
@@ -83,6 +92,19 @@ This is a portfolio/learning project by a second-year Software Technology studen
   goes through `normalizeNic()` (`src/patients/nic.js`) before saving AND before
   searching: `DEMO-NIC-` prefix required, old form converted with the DRP rule text,
   day-of-year checked, invalid NICs rejected (AppError INVALID_NIC). See DESIGN.md section 1.
+- Auth (approved security decisions, Phase 3):
+  - bcrypt cost 12. JWT HS256 with `JWT_SECRET` (server refuses to start if shorter
+    than 32 characters), valid 15 minutes, no refresh tokens. The JWT holds only
+    userId and membershipId (no names, no roles that could go stale).
+  - Every request reloads the user and membership: a BLOCKED user or a non-ACTIVE
+    membership is refused at once, not when the token expires.
+  - Login errors are always "Invalid username or password"; when the username does
+    not exist, bcrypt still compares against a dummy hash (same response time).
+  - Failed logins are audited. If the typed username matches no user, store only
+    "unknown username" (never the typed text: people type passwords into the username
+    field, and the audit log can never be deleted). If it matches, store the userId.
+  - Passwords and hashes never appear in logs or API responses.
+  - ADMIN memberships only in AUTHORITY facilities (checked in code).
 
 ## Folder structure
 ```
@@ -127,16 +149,24 @@ web/                  Next.js portals (Phase 7)
   - replacing a card leaves exactly one ACTIVE card and the old one BLOCKED
 
 ### Phase 3: Facilities, accounts and roles
-- Tables: Facility (type: HOSPITAL / LAB / CLINIC / PHARMACY, public key), User (person,
-  belongs to a facility, role from DESIGN.md), AuditLog (append-only).
-- Login with JWT. Middleware checks role permissions per DESIGN.md section 5.
+- Tables: Facility (type: HOSPITAL / LAB / CLINIC / PHARMACY / AUTHORITY, public key),
+  User (the person who logs in, optional own patientId), StaffMembership (user +
+  facility + staff role + job title + status; a person can have several),
+  AuditLog (append-only at the database level: trigger refuses UPDATE/DELETE/TRUNCATE).
+  See DESIGN.md section 5.
+- Login with JWT (15 minutes). A user with several memberships (or a patient record)
+  chooses one at login; the JWT holds userId + membershipId. All role permissions are
+  in ONE file (permission matrix), checked by one middleware; default deny (a route
+  with no permission rule is refused).
 - Every API request that touches patient data writes an AuditLog row (who, facility, what, when, why).
 - AuditLog has no update or delete routes at all.
 - Card changes are audited: blocking and replacing a card (Phase 2 `card-service.js`)
   must write an AuditLog row (who, facility, card serial, old and new status, reason),
   in the same transaction as the card change.
 - Map AppError codes to HTTP responses (e.g. CARD_CHANGED_CONCURRENTLY -> 409 Conflict).
-- Done when: tests prove a PHARMACIST cannot open a full record and a LAB_STAFF cannot edit another lab's result.
+- Done when: tests prove a PHARMACIST cannot open a full record, a LAB_STAFF cannot
+  correct another lab's result, an expired JWT is refused, a route with no permission
+  rule is refused, and the database refuses UPDATE/DELETE/TRUNCATE on AuditLog.
 
 ### Phase 4: Records (signed, append-only)
 - Labs and hospitals upload FHIR results; the server signs them with the facility key
