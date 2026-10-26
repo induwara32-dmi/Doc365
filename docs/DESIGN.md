@@ -91,6 +91,23 @@ Emergency summary = blood group, allergies, long-term conditions, current medici
 - Nobody edits anyone else's record. Nobody deletes clinical records.
 - Corrections create a new version (`amended` / `entered-in-error`); old versions stay.
 - Every record from a facility is signed with that facility's key (FHIR Provenance).
+- **The server NEVER signs on behalf of a facility.** If the server could sign as any
+  lab, a hacked server could forge "VERIFIED" reports, which would defeat the whole
+  point of signing. So:
+  - The facility signs BEFORE sending. Its private key stays with the facility
+    (in the prototype: `scripts/lab-client.js` reads `keys/`). Server code (`src/`)
+    never reads `keys/`; a test fails if any file under `src/` references it.
+  - The server only VERIFIES, with the facility's public key from the database.
+    TAMPERED or UNKNOWN_SIGNER uploads are rejected and audited.
+  - The signing facility must be the uploader's own membership facility (a lab
+    cannot upload a report signed by another lab, even with a valid signature).
+  - The patient is taken from the signed bundle itself (the Health ID in the
+    bundle's Patient resource), so a signed report cannot be attached to another patient.
+  - The signature is checked again every time a record is read, so a row changed
+    directly in the database later shows as TAMPERED.
+- Corrections follow the same rule: signed by the same facility, allowed only by
+  `can(actor, 'record.correct', record)` (own facility's records), stored as a new
+  version; the old version stays.
 - Patient uploads are allowed but always labelled PATIENT_UPLOADED (unverified).
 
 ### 5. Roles
@@ -164,6 +181,13 @@ the lab or just the person.
 ## Out of scope for the prototype
 - Real patient data (never), real NIC/PHN numbers (never).
 - NFC chip cards (QR is enough for the demo).
+- Facility key rotation: each facility has one public key. Every signed record stores
+  `signingKeyFingerprint` (SHA-256 of the public key that verified it), so a later
+  key-history table could still tell which key was trusted, but the prototype does
+  not support changing a facility's key.
+- Machine identity for facility systems: the lab client logs in as a person
+  (`mlt.silva`). A real system would authenticate the lab's system itself (e.g.
+  mutual TLS or a client certificate), not a staff member's password.
 - NIC special cases: under section 19(2) (dual citizenship) the old NIC number is
   cancelled and a new one issued. The prototype does not handle cancelled NICs.
 - Health ID size: 6 random digits give only 1 million IDs. Fine for the demo, but far

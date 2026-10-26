@@ -1,5 +1,21 @@
 # Doc365: Trusted Health Records for Sri Lanka (learning prototype)
 
+## Current status (updated 2026-10-26)
+- Phases 0-3 DONE. `npm test` (in `server/`): 101 tests, all passing.
+- Phase 4 STARTED: docs updated (server never signs; DESIGN.md section 4), schema
+  written, migration `20261026160740_phase4_clinical_records` CREATED BUT NOT APPLIED
+  (neither `doc365` nor `doc365_test`). Schema and migration are not committed yet.
+- Phase 4 decisions recorded:
+  - `bundleSha256` = SHA-256 of the canonicalized bundle (sorted keys).
+  - `signingKeyFingerprint` = SHA-256 of the facility public key that verified the
+    signature; required for every FACILITY_SIGNED record (CHECK in the migration).
+  - Key rotation: out of scope (option A), but the fingerprint is kept.
+  - `scripts/lab-client.js` logs in as `mlt.silva`; machine identity is out of scope.
+  - Phase 5: ClinicalRecord is append-only, so "hide a document" must be a separate
+    table, never a column on ClinicalRecord.
+- NEXT STEP: show the user the regenerated Phase 4 migration SQL. Apply it only after
+  approval, then the user runs `npm run db:test:reset`, then build the rest of Phase 4.
+
 A health card for every citizen. A doctor scans the card and sees the patient's
 complete, verified history from every hospital and lab. Inspired by Germany (eGK + ePA),
 Taiwan (NHI card + MediCloud), Estonia, India (ABDM) and the UK.
@@ -137,7 +153,8 @@ web/                  Next.js portals (Phase 7)
 ### Phase 1: Trust core: DONE
 - `src/core/canonicalize.js`, `sign.js`, `verify.js` already work.
 - Check: `npm run keys` then `npm run demo:signing` shows VERIFIED, TAMPERED, VERIFIED, PATIENT_UPLOADED.
-- In later phases, move facility public keys from `registry/facilities.json` into the database.
+- Facility public keys now live in the database (Phase 3 Facility table; the seed copies
+  Demo Lab Colombo's key from `registry/facilities.json`).
 
 ### Phase 2: Patients and health cards: DONE
 - Tables: Patient (FHIR Patient JSON + Health ID + date of birth + NIC optional),
@@ -173,18 +190,31 @@ web/                  Next.js portals (Phase 7)
   rule is refused, and the database refuses UPDATE/DELETE/TRUNCATE on AuditLog.
 
 ### Phase 4: Records (signed, append-only)
-- Labs and hospitals upload FHIR results; the server signs them with the facility key
-  and stores a Provenance resource.
-- Corrections create a new version with status `amended` or `entered-in-error`.
+- The server NEVER signs on behalf of a facility (DESIGN.md section 4). The facility
+  signs before sending: `scripts/lab-client.js` holds the lab's private key, signs a
+  FHIR bundle and uploads `{ bundle, provenance }`.
+- The server only VERIFIES, with the facility's public key from the database.
+  TAMPERED or UNKNOWN_SIGNER uploads are rejected and audited. The signing facility
+  must match the uploader's membership facility. The patient comes from the signed
+  bundle's Health ID.
+- Server code (`src/`) never reads `keys/`: a test fails if any file under `src/`
+  references the keys folder.
+- Corrections: same rules, signed by the same facility, allowed by
+  `can(actor, 'record.correct', record)`, stored as a new version with status
+  `amended` or `entered-in-error`. Old versions stay.
 - No edit or delete endpoints for clinical records.
 - Patient uploads stored with label PATIENT_UPLOADED.
-- Done when: an amended result shows both versions in history, and a tampered row is detected as TAMPERED.
+- Done when: an amended result shows both versions in history, a tampered row is
+  detected as TAMPERED, a TAMPERED / UNKNOWN_SIGNER / other-facility upload is
+  rejected and audited, and the `src/` must-not-read-`keys/` test passes.
 
 ### Phase 5: Access engine (the heart of Doc365)
 - Card scan + logged-in doctor + registered facility → AccessGrant for 90 days (from `.env`).
 - Sensitive records need card + patient PIN.
 - Emergency summary endpoint; break-glass access needs a reason and is flagged in the audit log.
 - Patient controls: block a facility/doctor, hide a document, opt out.
+  ClinicalRecord is append-only, so "hide a document" is a SEPARATE table (e.g.
+  patient + record lineage + hidden at/by), never a column on ClinicalRecord.
 - "Who viewed my record" endpoint for the patient.
 - Done when: tests cover all rows of the access table in DESIGN.md section 3.
 
