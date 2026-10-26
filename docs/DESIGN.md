@@ -32,6 +32,13 @@ If code and this file disagree, ask before changing either.
   same record and the card is renewed with a new photo. One record for life.
 - Demo Health ID format: `DEMO-` + 6 digits + `-` + check digit (Luhn).
   The DEMO prefix makes sure nobody mistakes it for a real PHN.
+  Example: `DEMO-123456-6`.
+- What the Luhn check digit catches: every single wrong digit, and almost every swap
+  of two neighbouring digits. Known limit: swapping `09` <-> `90` is NOT detected
+  (0 and 9 add the same amount to the Luhn sum whether doubled or not). Swapping two
+  equal digits (e.g. `44`) changes nothing, so it is not an error. A typo can still
+  produce another valid Health ID, so staff must always confirm the patient's name and
+  date of birth (and photo, later) after a lookup.
 - The photo matters for security: when a card is scanned without a PIN, staff use
   the photo to confirm the card holder is the patient. The prototype skips photos in
   Phase 2; a nullable `photoUrl` column on Card can be added in a later phase.
@@ -97,5 +104,9 @@ Accounts are per PERSON, inside a facility. The audit log shows
 ## Out of scope for the prototype
 - Real patient data (never), real NIC/PHN numbers (never).
 - NFC chip cards (QR is enough for the demo).
+- Health ID size: 6 random digits give only 1 million IDs. Fine for the demo, but far
+  too few for Sri Lanka (about 22 million people, plus every future birth). A real
+  system would need a longer ID; also, random IDs get more clashes (retries) as the
+  table fills up.
 - Real SMS sending (log to console instead).
 - Production security hardening, high availability.

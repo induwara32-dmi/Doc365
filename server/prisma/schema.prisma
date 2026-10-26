@@ -17,7 +17,7 @@ datasource db {
 // There is no age column: age is always calculated from dateOfBirth.
 model Patient {
   id          String    @id @default(uuid()) @db.Uuid
-  // Demo Health ID, e.g. DEMO-123456-7 (last digit is a Luhn check digit)
+  // Demo Health ID, e.g. DEMO-123456-6 (last digit is a Luhn check digit)
   healthId    String    @unique
   // Linked at age 16 or later. Empty for children.
   nic         String?   @unique

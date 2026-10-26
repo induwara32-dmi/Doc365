@@ -8,7 +8,7 @@
       "resource": {
         "resourceType": "Patient",
         "id": "patient-demo-0001",
-        "identifier": [{ "system": "urn:doc365:demo-phn", "value": "DEMO-000123-7" }],
+        "identifier": [{ "system": "urn:doc365:demo-phn", "value": "DEMO-000123-0" }],
         "name": [{ "family": "Perera", "given": ["Demo"] }],
         "gender": "male",
         "birthDate": "1985-04-12"

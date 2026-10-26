@@ -1,0 +1,3 @@
+# Keep migration SQL byte-for-byte identical on every machine.
+# Prisma checksums applied migrations; changing line endings would break that.
+*.sql text eol=lf

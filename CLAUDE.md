@@ -101,7 +101,7 @@ web/                  Next.js portals (Phase 7)
 ### Phase 2: Patients and health cards
 - Tables: Patient (FHIR Patient JSON + Health ID + date of birth + NIC optional),
   Card (serial, status: ACTIVE / BLOCKED / REPLACED), Guardian links.
-- Health ID generator with Luhn check digit (`DEMO-123456-7`).
+- Health ID generator with Luhn check digit (`DEMO-123456-6`).
 - Register a newborn (with guardian), link NIC at 16, block and reissue a lost card.
 - Card QR contains ONLY Health ID + card serial. Age is computed from date of birth, never stored.
 - Done when: a seed script registers 3 fake patients (a baby, a teenager, an adult)
