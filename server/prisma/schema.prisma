@@ -21,6 +21,15 @@ model Patient {
   healthId    String    @unique
   // Linked at age 16 or later. Empty for children.
   nic         String?   @unique
+  // Staff confirm name and date of birth after every lookup (DESIGN.md section 1).
+  // A newborn may not have a given name yet, so it is optional.
+  givenName   String?
+  familyName  String
+  // The full name exactly as written on the birth certificate or NIC
+  // (FHIR HumanName.text). Sri Lankan names often don't split cleanly
+  // into given and family names.
+  fullName    String?
+  sex         Sex
   // Kept as its own column so we can calculate age and check the NIC age rule.
   dateOfBirth DateTime  @db.Date
   // The full FHIR R4 Patient resource (name, gender, identifiers...), stored as JSONB.
@@ -35,6 +44,15 @@ model Patient {
   guardians   GuardianLink[] @relation("child")
   // Links where this patient is the guardian
   children    GuardianLink[] @relation("guardian")
+}
+
+// FHIR R4 administrative gender values, lowercase exactly as FHIR uses them,
+// so they go straight into Patient.gender in the FHIR JSON.
+enum Sex {
+  male
+  female
+  other
+  unknown
 }
 
 enum CardStatus {

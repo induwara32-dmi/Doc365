@@ -48,3 +48,81 @@ export function normalizeNic(input) {
 
   return PREFIX + newNic;
 }
+
+// ---------- Cross-check a NIC against the patient's record ----------
+// Used when linking a NIC at 16 (DESIGN.md section 1).
+
+function isLeapYear(year) {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+// Normal day of the year: 1 January = 1, 31 December = 365 (366 in a leap year).
+function calendarDayOfYear(date) {
+  const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 1);
+  return Math.round((date.getTime() - startOfYear) / 86_400_000) + 1;
+}
+
+// How a NIC day code may count days. No official source says which one the DRP
+// uses, so a NIC is accepted if ANY rule matches (DESIGN.md section 1).
+// To drop a rule later, delete its line here and its test.
+export const NIC_DAY_RULES = [
+  {
+    // Rule A: February always has 29 days, even in normal years
+    // (most unofficial sources). In a normal year, 1 March = 61, 31 December = 366.
+    name: 'february-always-29',
+    dayOf(date) {
+      const day = calendarDayOfYear(date);
+      const afterFebruary = date.getUTCMonth() >= 2; // March or later
+      return !isLeapYear(date.getUTCFullYear()) && afterFebruary ? day + 1 : day;
+    },
+  },
+  {
+    // Rule B: the real calendar. In a normal year, 1 March = 60, 31 December = 365.
+    name: 'real-calendar',
+    dayOf: calendarDayOfYear,
+  },
+];
+
+// Checks that a NIC fits the patient's date of birth and sex.
+// - Year or day-of-year mismatch: throws AppError NIC_DOB_MISMATCH.
+// - Sex mismatch (the +500 part): NOT rejected; returns a warning for staff
+//   to confirm. Skipped when sex is "other" or "unknown".
+// Returns { nic, warnings }, where nic is the normalized NIC to save.
+export function checkNicAgainstPatient(nic, { dateOfBirth, sex }) {
+  const normalized = normalizeNic(nic);
+  const digits = normalized.slice(PREFIX.length);
+
+  const nicYear = Number(digits.slice(0, 4));
+  const dayCode = Number(digits.slice(4, 7));
+  const nicSaysFemale = dayCode > 500;
+  const nicDay = nicSaysFemale ? dayCode - 500 : dayCode;
+
+  const birthYear = dateOfBirth.getUTCFullYear();
+  if (nicYear !== birthYear) {
+    throw new AppError(
+      'NIC_DOB_MISMATCH',
+      `NIC year ${nicYear} does not match the date of birth (${birthYear})`,
+    );
+  }
+
+  const dayMatches = NIC_DAY_RULES.some((rule) => rule.dayOf(dateOfBirth) === nicDay);
+  if (!dayMatches) {
+    throw new AppError(
+      'NIC_DOB_MISMATCH',
+      `NIC day-of-year ${String(nicDay).padStart(3, '0')} does not match the date of birth ` +
+        `(${dateOfBirth.toISOString().slice(0, 10)})`,
+    );
+  }
+
+  const warnings = [];
+  const sexMismatch = (sex === 'male' && nicSaysFemale) || (sex === 'female' && !nicSaysFemale);
+  if (sexMismatch) {
+    warnings.push({
+      code: 'NIC_SEX_MISMATCH',
+      message: `The NIC encodes ${nicSaysFemale ? 'female' : 'male'}, but the record says ${sex}. ` +
+        'Please confirm with the patient before saving.',
+    });
+  }
+
+  return { nic: normalized, warnings };
+}

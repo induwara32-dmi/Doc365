@@ -2,11 +2,12 @@
 import './guard.js';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomInt, randomUUID } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import { prisma } from '../src/db.js';
 import { normalizeNic } from '../src/patients/nic.js';
 import { findPatientByNic } from '../src/patients/patient-service.js';
 import { AppError } from '../src/errors.js';
+import { createTestPatient } from './helpers.js';
 
 after(async () => {
   await prisma.$disconnect();
@@ -93,13 +94,9 @@ test('searching by the old NIC finds a patient saved with the new NIC', async ()
   const serial = String(randomInt(0, 10000)).padStart(4, '0');
   const oldNic = `DEMO-NIC-${yy}${day}${serial}V`;
 
-  const patient = await prisma.patient.create({
-    data: {
-      healthId: `DEMO-TEST-${randomUUID()}`,
-      nic: normalizeNic(oldNic), // saved in the new form
-      dateOfBirth: new Date('1985-01-01'),
-      fhir: { resourceType: 'Patient' },
-    },
+  const patient = await createTestPatient({
+    nic: normalizeNic(oldNic), // saved in the new form
+    dateOfBirth: new Date('1985-01-01'),
   });
 
   assert.equal((await findPatientByNic(oldNic))?.id, patient.id);

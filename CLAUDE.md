@@ -51,6 +51,10 @@ This is a portfolio/learning project by a second-year Software Technology studen
   kept as an option.
 - Always create migrations with `--create-only` first, show the SQL, and apply only
   after approval.
+- Adding a required (NOT NULL) column to a table with real data must use
+  expand and contract, never a reset: (1) add the column as nullable, (2) backfill
+  every row, (3) set NOT NULL in a later migration. Resetting is only for the test
+  database.
 - Tests run on a separate `doc365_test` database, never the dev database. Settings are
   in `.env.test` (gitignored; copy from the committed `.env.test.example`).
   `npm test` first runs `migrate deploy` on the test database (`pretest`), then runs
@@ -58,6 +62,9 @@ This is a portfolio/learning project by a second-year Software Technology studen
   unless the database name ends in `_test`.
 - Tests never delete data (the audit log becomes append-only in Phase 3). They use
   random IDs (e.g. `DEMO-TEST-<uuid>`) so runs never clash.
+- `npm run db:test:reset` wipes the test database and re-applies all migrations
+  (`scripts/reset-test-db.js`; refuses any database not ending in `_test`). The user
+  runs it, not Claude (Prisma blocks `migrate reset` when run by an AI agent).
 - Hand-written SQL in the Phase 2 migration (Prisma cannot express it):
   partial unique index `Card_one_active_per_patient` and CHECK
   `GuardianLink_not_own_guardian`. Check every new migration does not drop them.

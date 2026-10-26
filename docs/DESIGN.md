@@ -55,6 +55,20 @@ If code and this file disagree, ask before changing either.
   - The V/X letter (voter status) is not kept; Doc365 has no use for it.
   - Demo NICs must start with `DEMO-NIC-` (real rules apply after it); NICs without
     the prefix are rejected, so a real NIC can never be entered by accident.
+- Cross-check when linking a NIC (at 16): the NIC encodes birth year, day of the year
+  and sex (+500 for women). It is compared with the patient's record:
+  - Year or day-of-year mismatch: rejected (likely a typo or the wrong person).
+  - February: no official source found for how the DRP counts it. Most unofficial
+    sources say February always counts as 29 days (so in a normal year 1 March = 061,
+    31 December = 366); one says the real calendar (1 March = 060). Until an official
+    source settles it, a NIC is accepted if EITHER rule matches. The two rules are
+    separate entries in `NIC_DAY_RULES` (`src/patients/nic.js`) so one can be dropped
+    later (also update the tests that use it). The two rules differ by at most one
+    day, so real typos (wrong year, month, or +500) are still caught.
+  - Sex mismatch (the +500 part): NOT rejected. Staff get a warning to confirm with
+    the patient, because the sex in the record and the sex encoded when the NIC was
+    issued can legitimately differ (a registration error, or a later change).
+    The sex check is skipped when the record says `other` or `unknown`.
 
 ### 2. The "three keys" rule
 A full record opens only when ALL three are present:
