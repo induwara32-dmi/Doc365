@@ -117,6 +117,10 @@ web/                  Next.js portals (Phase 7)
 - Login with JWT. Middleware checks role permissions per DESIGN.md section 5.
 - Every API request that touches patient data writes an AuditLog row (who, facility, what, when, why).
 - AuditLog has no update or delete routes at all.
+- Card changes are audited: blocking and replacing a card (Phase 2 `card-service.js`)
+  must write an AuditLog row (who, facility, card serial, old and new status, reason),
+  in the same transaction as the card change.
+- Map AppError codes to HTTP responses (e.g. CARD_CHANGED_CONCURRENTLY -> 409 Conflict).
 - Done when: tests prove a PHARMACIST cannot open a full record and a LAB_STAFF cannot edit another lab's result.
 
 ### Phase 4: Records (signed, append-only)

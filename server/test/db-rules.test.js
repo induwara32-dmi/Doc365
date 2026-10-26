@@ -8,16 +8,8 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { prisma } from '../src/db.js';
-
-async function createTestPatient() {
-  return prisma.patient.create({
-    data: {
-      healthId: `DEMO-TEST-${randomUUID()}`,
-      dateOfBirth: new Date('2000-01-01'),
-      fhir: { resourceType: 'Patient' },
-    },
-  });
-}
+import { issueCard, replaceCard } from '../src/patients/card-service.js';
+import { createTestPatient, cardsOf } from './helpers.js';
 
 function testSerial() {
   return `TEST-${randomUUID()}`;
@@ -58,6 +50,22 @@ test('a patient cannot be their own guardian', async () => {
   );
 });
 
-test('replacing a card leaves exactly one ACTIVE card and the old one BLOCKED', {
-  todo: 'write this when the card service (replaceCard) exists',
+test('replacing a card leaves exactly one ACTIVE card and the old one BLOCKED', async () => {
+  const patient = await createTestPatient();
+  const oldCard = await issueCard(patient.id);
+
+  const newCard = await replaceCard(patient.id, { oldStatus: 'BLOCKED', reason: 'Lost on bus' });
+
+  const cards = await cardsOf(patient.id);
+  assert.equal(cards.length, 2);
+  assert.equal(cards.filter((c) => c.status === 'ACTIVE').length, 1);
+
+  const old = cards.find((c) => c.id === oldCard.id);
+  assert.equal(old.status, 'BLOCKED');
+  assert.equal(old.endedReason, 'Lost on bus');
+  assert.ok(old.endedAt);
+
+  const active = cards.find((c) => c.status === 'ACTIVE');
+  assert.equal(active.id, newCard.id);
+  assert.notEqual(newCard.serial, oldCard.serial);
 });
