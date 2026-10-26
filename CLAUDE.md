@@ -86,6 +86,10 @@ This is a portfolio/learning project by a second-year Software Technology studen
   (`todayInSriLanka()`); services take an optional `today` so tests use a fixed date.
 - `npm run seed` (dev database) is idempotent: fixed Luhn-valid Health IDs
   (DEMO-100001-7, DEMO-100002-5, DEMO-100003-3), every step skipped if already done.
+  Phase 3 adds 5 facilities (Demo Lab Colombo keeps its Phase 1 key; others get new
+  Ed25519 keys in keys/) and accounts admin, registrar, dr.perera (two hospitals),
+  mlt.silva, pharm.fernando, kumari (patient account). All use SEED_PASSWORD from
+  .env (never printed, never in code).
 - Card serials come from `crypto` random bytes, never counters. Issuing a replacement
   card blocks/replaces the old card and creates the new one in one transaction.
 - The `nic` column is plain nullable unique text (no migration for NIC rules). Every NIC
@@ -148,7 +152,7 @@ web/                  Next.js portals (Phase 7)
   - a GuardianLink where childId equals guardianId fails
   - replacing a card leaves exactly one ACTIVE card and the old one BLOCKED
 
-### Phase 3: Facilities, accounts and roles
+### Phase 3: Facilities, accounts and roles: DONE
 - Tables: Facility (type: HOSPITAL / LAB / CLINIC / PHARMACY / AUTHORITY, public key),
   User (the person who logs in, optional own patientId), StaffMembership (user +
   facility + staff role + job title + status; a person can have several),

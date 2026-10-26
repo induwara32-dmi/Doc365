@@ -49,11 +49,11 @@ test('the database refuses DELETE on AuditLog (raw SQL and Prisma)', async () =>
 
 test('the database refuses TRUNCATE on AuditLog', async () => {
   const row = await oneAuditRow();
-  const before = await prisma.auditLog.count();
 
   await assert.rejects(prisma.$executeRawUnsafe('TRUNCATE "AuditLog"'), isAppendOnlyError);
 
-  assert.equal(await prisma.auditLog.count(), before);
+  // TRUNCATE empties the whole table at once, so if our row survived, nothing was removed.
+  // (Do not compare total row counts: other test files write audit rows in parallel.)
   assert.ok(await prisma.auditLog.findUnique({ where: { id: row.id } }));
 });
 
