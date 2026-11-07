@@ -1,20 +1,15 @@
 # Doc365: Trusted Health Records for Sri Lanka (learning prototype)
 
-## Current status (updated 2026-10-26)
-- Phases 0-3 DONE. `npm test` (in `server/`): 101 tests, all passing.
-- Phase 4 STARTED: docs updated (server never signs; DESIGN.md section 4), schema
-  written, migration `20261026160740_phase4_clinical_records` CREATED BUT NOT APPLIED
-  (neither `doc365` nor `doc365_test`). Schema and migration are not committed yet.
-- Phase 4 decisions recorded:
-  - `bundleSha256` = SHA-256 of the canonicalized bundle (sorted keys).
-  - `signingKeyFingerprint` = SHA-256 of the facility public key that verified the
-    signature; required for every FACILITY_SIGNED record (CHECK in the migration).
-  - Key rotation: out of scope (option A), but the fingerprint is kept.
-  - `scripts/lab-client.js` logs in as `mlt.silva`; machine identity is out of scope.
-  - Phase 5: ClinicalRecord is append-only, so "hide a document" must be a separate
-    table, never a column on ClinicalRecord.
-- NEXT STEP: show the user the regenerated Phase 4 migration SQL. Apply it only after
-  approval, then the user runs `npm run db:test:reset`, then build the rest of Phase 4.
+## Current status (updated 2026-11-07)
+- Phases 0-4 DONE. `npm test` (in `server/`): 114 tests, all passing.
+- Phase 4 complete:
+  - ClinicalRecord intake and append-only version lineage (`POST /records`, `POST /records/:id/correct`).
+  - Cryptographic verification via facility public keys from database (`VERIFIED`, `TAMPERED`, `UNKNOWN_SIGNER`, `PATIENT_UPLOADED`).
+  - Server never signs; `src/` never reads `keys/` (verified by automated test).
+  - Verification on read detects any direct database alteration as `TAMPERED`.
+  - Database triggers block `UPDATE`, `DELETE`, and `TRUNCATE` on `ClinicalRecord`.
+  - `npm run demo:lab` (`scripts/lab-client.js`) logs in as `mlt.silva`, signs a FHIR bundle, and uploads verified records.
+- NEXT STEP: Wait for user direction to begin Phase 5 (Access engine: three keys rule, emergency summary break-glass, patient consent controls).
 
 A health card for every citizen. A doctor scans the card and sees the patient's
 complete, verified history from every hospital and lab. Inspired by Germany (eGK + ePA),
@@ -189,7 +184,7 @@ web/                  Next.js portals (Phase 7)
   correct another lab's result, an expired JWT is refused, a route with no permission
   rule is refused, and the database refuses UPDATE/DELETE/TRUNCATE on AuditLog.
 
-### Phase 4: Records (signed, append-only)
+### Phase 4: Records (signed, append-only): DONE
 - The server NEVER signs on behalf of a facility (DESIGN.md section 4). The facility
   signs before sending: `scripts/lab-client.js` holds the lab's private key, signs a
   FHIR bundle and uploads `{ bundle, provenance }`.

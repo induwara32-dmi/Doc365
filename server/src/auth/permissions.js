@@ -48,6 +48,10 @@ export const PERMISSIONS = {
   // A lab sees only the records it created
   'record.view_created': { LAB_STAFF: OWN_FACILITY },
   'record.view_own': { [PATIENT]: ALWAYS },
+  // Viewing an individual record or its history
+  'record.view': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS, LAB_STAFF: OWN_FACILITY, [PATIENT]: ALWAYS },
+  // Uploading a new record (Phase 4): facility staff or patient
+  'record.upload': { LAB_STAFF: ALWAYS, HOSPITAL_STAFF: ALWAYS, DOCTOR: ALWAYS, [PATIENT]: ALWAYS },
   // Corrections are new versions (Phase 4), only of your own (facility's) records
   'record.correct': { LAB_STAFF: OWN_FACILITY, HOSPITAL_STAFF: OWN_FACILITY, DOCTOR: OWN_ENTRY },
 
@@ -75,11 +79,14 @@ export function ruleFor(actor, permission) {
 }
 
 // May this actor do this? `resource` is only needed for OWN_FACILITY / OWN_ENTRY
-// rules; it must have `facilityId` / `createdByUserId`.
+// rules; it must have `facilityId` / `createdByUserId` (or `uploadedByUserId`).
 export function can(actor, permission, resource) {
   const rule = ruleFor(actor, permission);
   if (rule === PUBLIC || rule === ALWAYS) return true;
-  if (rule === OWN_FACILITY) return Boolean(resource && actor.facilityId && resource.facilityId === actor.facilityId);
-  if (rule === OWN_ENTRY) return Boolean(resource && actor.userId && resource.createdByUserId === actor.userId);
+  if (rule === OWN_FACILITY) return Boolean(resource && actor?.facilityId && resource.facilityId === actor.facilityId);
+  if (rule === OWN_ENTRY) {
+    const ownerId = resource?.createdByUserId ?? resource?.uploadedByUserId;
+    return Boolean(resource && actor?.userId && ownerId === actor.userId);
+  }
   return false;
 }
