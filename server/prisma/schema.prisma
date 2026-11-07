@@ -39,6 +39,13 @@ model Patient {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Phase 5: patient PIN (hashed with bcrypt) for elevating access to sensitive records
+  pinHash        String?
+  // Phase 5: patient opt-out controls
+  optedOutAt     DateTime?
+  optOutReason   String?
+  researchOptOut Boolean   @default(false)
+
   cards     Card[]
   // Links where this patient is the child
   guardians GuardianLink[]   @relation("child")
@@ -49,6 +56,10 @@ model Patient {
   auditLogs AuditLog[]
   // Phase 4: clinical records (every version)
   records   ClinicalRecord[]
+  // Phase 5: access grants and consent controls
+  accessGrants   AccessGrant[]
+  providerBlocks PatientProviderBlock[]
+  hiddenRecords  HiddenRecord[]
 }
 
 // FHIR R4 administrative gender values, lowercase exactly as FHIR uses them,
@@ -81,6 +92,8 @@ model Card {
   endedReason String?
   // Also in the migration SQL (Prisma cannot express it here):
   // unique index "Card_one_active_per_patient" = at most one ACTIVE card per patient.
+
+  accessGrants AccessGrant[]
 
   @@index([patientId])
 }
@@ -139,6 +152,9 @@ model Facility {
   auditLogs     AuditLog[]
   // Phase 4: records this facility signed
   signedRecords ClinicalRecord[]
+  // Phase 5: access grants and patient blocks
+  accessGrants   AccessGrant[]
+  providerBlocks PatientProviderBlock[]
 }
 
 enum UserStatus {
@@ -167,6 +183,11 @@ model User {
   auditLogs       AuditLog[]
   // Phase 4: records this person uploaded
   uploadedRecords ClinicalRecord[]
+  // Phase 5: access grants and consent actions
+  grantedAccessGrants  AccessGrant[]          @relation("GrantedAccessGrants")
+  revokedAccessGrants  AccessGrant[]          @relation("RevokedAccessGrants")
+  doctorProviderBlocks PatientProviderBlock[]
+  hiddenRecords        HiddenRecord[]
 }
 
 // Staff roles from DESIGN.md section 5. PATIENT is not here: patient access comes
@@ -299,9 +320,74 @@ model ClinicalRecord {
   // Required for FACILITY_SIGNED, empty for patient uploads (CHECK in the migration).
   // Key rotation is out of scope, but this records which key was trusted.
   signingKeyFingerprint  String?
+  // Phase 5: sensitive records (HIV, mental health, reproductive health) need patient PIN
+  isSensitive            Boolean          @default(false)
   createdAt              DateTime         @default(now())
 
   @@unique([lineageId, version])
   @@unique([facilityId, bundleSha256])
   @@index([patientId, createdAt])
+}
+
+// ---------- Phase 5: Access engine and patient consent ----------
+
+// Time-limited consultation access grant ledger entry (90 days default)
+// created when a patient's card is presented/scanned at a registered facility,
+// or via emergency break-glass override.
+model AccessGrant {
+  id               String    @id @default(uuid()) @db.Uuid
+  patientId        String    @db.Uuid
+  patient          Patient   @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  facilityId       String    @db.Uuid
+  facility         Facility  @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  cardId           String?   @db.Uuid
+  card             Card?     @relation(fields: [cardId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  grantedByUserId  String    @db.Uuid
+  grantedByUser    User      @relation("GrantedAccessGrants", fields: [grantedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  grantedAt        DateTime  @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  revokedByUserId  String?   @db.Uuid
+  revokedByUser    User?     @relation("RevokedAccessGrants", fields: [revokedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  isBreakGlass     Boolean   @default(false)
+  breakGlassReason String?
+
+  @@index([patientId, facilityId])
+  @@index([patientId, expiresAt])
+}
+
+// Patient control: block a specific healthcare facility or a specific doctor.
+// Checked before granting or exercising record access.
+model PatientProviderBlock {
+  id           String    @id @default(uuid()) @db.Uuid
+  patientId    String    @db.Uuid
+  patient      Patient   @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  facilityId   String?   @db.Uuid
+  facility     Facility? @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  doctorUserId String?   @db.Uuid
+  doctorUser   User?     @relation(fields: [doctorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reason       String?
+  createdAt    DateTime  @default(now())
+  active       Boolean   @default(true)
+
+  @@index([patientId, active])
+  @@index([facilityId])
+  @@index([doctorUserId])
+}
+
+// Patient control: hide a specific clinical record lineage from standard clinical view.
+// ClinicalRecord is append-only, so hiding is tracked in this separate ledger table.
+model HiddenRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  patientId      String   @db.Uuid
+  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  lineageId      String   @db.Uuid
+  hiddenByUserId String   @db.Uuid
+  hiddenByUser   User     @relation(fields: [hiddenByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reason         String?
+  hiddenAt       DateTime @default(now())
+  active         Boolean  @default(true)
+
+  @@unique([patientId, lineageId])
+  @@index([patientId, active])
 }

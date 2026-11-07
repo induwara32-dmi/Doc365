@@ -58,6 +58,15 @@ export const PERMISSIONS = {
   // A pharmacy sees only the scanned prescription (Phase 6)
   'prescription.view_scanned': { PHARMACIST: ALWAYS },
 
+  // Phase 5: Access Engine and Consent Controls
+  'access.scan': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS },
+  'access.break_glass': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS },
+  'access.emergency_summary': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS },
+  'access.revoke_grant': { [PATIENT]: ALWAYS, DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS, ADMIN: ALWAYS },
+  'access.view_ledger': { [PATIENT]: ALWAYS, ADMIN: ALWAYS },
+  'patient.set_pin': { [PATIENT]: ALWAYS, REGISTRAR: ALWAYS },
+  'patient.consent_manage': { [PATIENT]: ALWAYS, REGISTRAR: ALWAYS },
+
   'patient.view_demographics': { REGISTRAR: ALWAYS },
   'patient.register': { REGISTRAR: ALWAYS },
   'patient.link_nic': { REGISTRAR: ALWAYS },

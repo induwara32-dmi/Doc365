@@ -12,6 +12,7 @@ import { canonicalize } from '../core/canonicalize.js';
 import { TRUST } from '../core/verify.js';
 import { requireActor, writeAudit } from '../audit/audit-log.js';
 import { can, PATIENT } from '../auth/permissions.js';
+import { verifyClinicalAccess, verifyPatientPin } from '../access/access-service.js';
 
 export function sha256Hex(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
@@ -101,7 +102,7 @@ export async function verifyProvenanceSignature(bundle, provenance, db = prisma)
 }
 
 // Upload a new clinical record (version 1).
-export async function createRecord({ bundle, provenance }, { actor, db = prisma }) {
+export async function createRecord({ bundle, provenance, isSensitive = false }, { actor, db = prisma }) {
   requireActor(actor);
 
   if (!bundle || typeof bundle !== 'object') {
@@ -217,6 +218,7 @@ export async function createRecord({ bundle, provenance }, { actor, db = prisma 
         provenance: provenance ?? Prisma.DbNull,
         bundleSha256: hash,
         signingKeyFingerprint,
+        isSensitive: Boolean(isSensitive),
       },
     });
 
@@ -245,7 +247,7 @@ export async function createRecord({ bundle, provenance }, { actor, db = prisma 
 }
 
 // Correct an existing record (amended or entered-in-error). Creates a new version.
-export async function correctRecord(previousRecordId, { bundle, provenance, status: requestedStatus }, { actor, db = prisma }) {
+export async function correctRecord(previousRecordId, { bundle, provenance, status: requestedStatus, isSensitive }, { actor, db = prisma }) {
   requireActor(actor);
 
   if (!bundle || typeof bundle !== 'object') {
@@ -362,6 +364,7 @@ export async function correctRecord(previousRecordId, { bundle, provenance, stat
         provenance,
         bundleSha256: hash,
         signingKeyFingerprint: sha256Hex(verification.facility.publicKeyPem),
+        isSensitive: isSensitive !== undefined ? Boolean(isSensitive) : previous.isSensitive,
       },
     });
 
@@ -434,7 +437,7 @@ export async function verifyRecordIntegrity(record, db = prisma) {
 }
 
 // Retrieves a record by ID and checks its integrity.
-export async function getRecordById(id, { actor, db = prisma } = {}) {
+export async function getRecordById(id, { actor, pin, db = prisma } = {}) {
   const record = await db.clinicalRecord.findUnique({ where: { id } });
   if (!record) throw new AppError('RECORD_NOT_FOUND', 'Record not found');
 
@@ -445,6 +448,27 @@ export async function getRecordById(id, { actor, db = prisma } = {}) {
     if (actor.role === PATIENT && record.patientId !== actor.ownPatientId) {
       throw new AppError('FORBIDDEN', 'You may only view your own records');
     }
+    if (actor.role === 'DOCTOR' || actor.role === 'HOSPITAL_STAFF') {
+      await verifyClinicalAccess(record.patientId, { actor, db });
+      const hidden = await db.hiddenRecord.findFirst({
+        where: { patientId: record.patientId, lineageId: record.lineageId, active: true },
+      });
+      if (hidden) {
+        throw new AppError('RECORD_NOT_FOUND', 'Record not found');
+      }
+      if (record.isSensitive) {
+        const patient = await db.patient.findUnique({ where: { id: record.patientId } });
+        const pinValid = await verifyPatientPin(patient, pin);
+        if (!pinValid) {
+          await writeAudit(actor, {
+            action: 'access.pin_failed',
+            patientId: record.patientId,
+            reason: 'Invalid PIN provided for sensitive record',
+          }, db);
+          throw new AppError('INVALID_PIN', 'Invalid patient PIN for sensitive records');
+        }
+      }
+    }
   }
 
   const trust = await verifyRecordIntegrity(record, db);
@@ -452,7 +476,7 @@ export async function getRecordById(id, { actor, db = prisma } = {}) {
 }
 
 // Retrieves the full version history for a lineage (oldest to newest).
-export async function getRecordHistory(lineageId, { actor, db = prisma } = {}) {
+export async function getRecordHistory(lineageId, { actor, pin, db = prisma } = {}) {
   const versions = await db.clinicalRecord.findMany({
     where: { lineageId },
     orderBy: { version: 'asc' },
@@ -462,6 +486,8 @@ export async function getRecordHistory(lineageId, { actor, db = prisma } = {}) {
     throw new AppError('RECORD_NOT_FOUND', 'Record lineage not found');
   }
 
+  const patientId = versions[0].patientId;
+
   if (actor) {
     const first = versions[0];
     if (actor.role === 'LAB_STAFF' && first.facilityId !== actor.facilityId) {
@@ -469,6 +495,28 @@ export async function getRecordHistory(lineageId, { actor, db = prisma } = {}) {
     }
     if (actor.role === PATIENT && first.patientId !== actor.ownPatientId) {
       throw new AppError('FORBIDDEN', 'You may only view your own records');
+    }
+    if (actor.role === 'DOCTOR' || actor.role === 'HOSPITAL_STAFF') {
+      await verifyClinicalAccess(patientId, { actor, db });
+      const hidden = await db.hiddenRecord.findFirst({
+        where: { patientId, lineageId, active: true },
+      });
+      if (hidden) {
+        throw new AppError('RECORD_NOT_FOUND', 'Record lineage not found');
+      }
+      const hasSensitive = versions.some((v) => v.isSensitive);
+      if (hasSensitive) {
+        const patient = await db.patient.findUnique({ where: { id: patientId } });
+        const pinValid = await verifyPatientPin(patient, pin);
+        if (!pinValid) {
+          await writeAudit(actor, {
+            action: 'access.pin_failed',
+            patientId,
+            reason: 'Invalid PIN provided for sensitive record history',
+          }, db);
+          throw new AppError('INVALID_PIN', 'Invalid patient PIN for sensitive records');
+        }
+      }
     }
   }
 
@@ -483,20 +531,60 @@ export async function getRecordHistory(lineageId, { actor, db = prisma } = {}) {
 }
 
 // Retrieves all records for a patient (with their verified trust status).
-export async function getPatientRecords(patientId, { actor, db = prisma } = {}) {
+export async function getPatientRecords(patientId, { actor, pin, db = prisma } = {}) {
+  const patient = await db.patient.findUnique({ where: { id: patientId } });
+  if (!patient) throw new AppError('PATIENT_NOT_FOUND', 'Patient not found');
+
+  let hasElevatedPinAccess = false;
+  if (actor) {
+    if (actor.role === 'DOCTOR' || actor.role === 'HOSPITAL_STAFF') {
+      await verifyClinicalAccess(patientId, { actor, db });
+      if (pin) {
+        const pinValid = await verifyPatientPin(patient, pin);
+        if (!pinValid) {
+          await writeAudit(actor, {
+            action: 'access.pin_failed',
+            patientId,
+            reason: 'Invalid PIN provided for sensitive records',
+          }, db);
+          throw new AppError('INVALID_PIN', 'Invalid patient PIN for sensitive records');
+        }
+        hasElevatedPinAccess = true;
+      }
+    } else if (actor.role === PATIENT) {
+      await verifyClinicalAccess(patientId, { actor, db });
+      hasElevatedPinAccess = true;
+    }
+  }
+
+  const hidden = await db.hiddenRecord.findMany({
+    where: { patientId, active: true },
+    select: { lineageId: true },
+  });
+  const hiddenLineages = new Set(hidden.map((h) => h.lineageId));
+
   const records = await db.clinicalRecord.findMany({
     where: { patientId },
     orderBy: { createdAt: 'desc' },
   });
 
-  const filtered = actor?.role === 'LAB_STAFF'
-    ? records.filter((r) => r.facilityId === actor.facilityId)
-    : records;
+  const isStaff = actor && (actor.role === 'DOCTOR' || actor.role === 'HOSPITAL_STAFF');
+  const isLab = actor && actor.role === 'LAB_STAFF';
+
+  const filtered = records.filter((r) => {
+    if (isLab) return r.facilityId === actor.facilityId;
+    if (isStaff) {
+      if (hiddenLineages.has(r.lineageId)) return false;
+      if (r.isSensitive && !hasElevatedPinAccess) return false;
+    }
+    return true;
+  });
 
   return Promise.all(
     filtered.map(async (r) => {
       const trust = await verifyRecordIntegrity(r, db);
-      return { ...r, trust };
+      const isHidden = hiddenLineages.has(r.lineageId);
+      return { ...r, trust, isHidden };
     })
   );
 }

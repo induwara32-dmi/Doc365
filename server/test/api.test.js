@@ -17,6 +17,7 @@ import {
   createTestUser,
   uniqueName,
   TEST_PASSWORD,
+  TEST_ACTOR,
 } from './helpers.js';
 
 let hospital, lab, pharmacy, ministry, privateHospital;
@@ -31,6 +32,7 @@ before(async () => {
     createTestFacility('HOSPITAL', 'Test Private Hospital'),
   ]);
   patient = await createTestPatient({ familyName: uniqueName() });
+  const card = await issueCard(patient.id, { actor: TEST_ACTOR });
   [doctor, pharmacist, registrar, labStaff, twoJobsDoctor, patientUser] = await Promise.all([
     createTestUser({ fullName: 'D. Perera', memberships: [{ facility: hospital, role: 'DOCTOR', jobTitle: 'Dr.' }] }),
     createTestUser({ memberships: [{ facility: pharmacy, role: 'PHARMACIST' }] }),
@@ -46,6 +48,15 @@ before(async () => {
     }),
     createTestUser({ fullName: 'P. Jayasinghe', patientId: (await createTestPatient()).id }),
   ]);
+  await prisma.accessGrant.create({
+    data: {
+      patientId: patient.id,
+      facilityId: hospital.id,
+      cardId: card.id,
+      grantedByUserId: doctor.user.id,
+      expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+    },
+  });
 });
 
 after(async () => {

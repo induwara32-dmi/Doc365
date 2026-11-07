@@ -19,6 +19,7 @@ import {
   TEST_PASSWORD,
   TEST_ACTOR,
 } from './helpers.js';
+import { issueCard } from '../src/patients/card-service.js';
 import {
   createRecord,
   correctRecord,
@@ -95,6 +96,17 @@ before(async () => {
   patientUser = await createTestUser({
     fullName: 'Patient Silva',
     patientId: testPatient.id,
+  });
+
+  const card = await issueCard(testPatient.id, { actor: TEST_ACTOR });
+  await prisma.accessGrant.create({
+    data: {
+      patientId: testPatient.id,
+      facilityId: hospital.id,
+      cardId: card.id,
+      grantedByUserId: doctorUser.user.id,
+      expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+    },
   });
 });
 

@@ -1,15 +1,18 @@
 # Doc365: Trusted Health Records for Sri Lanka (learning prototype)
 
 ## Current status (updated 2026-11-07)
-- Phases 0-4 DONE. `npm test` (in `server/`): 114 tests, all passing.
-- Phase 4 complete:
-  - ClinicalRecord intake and append-only version lineage (`POST /records`, `POST /records/:id/correct`).
-  - Cryptographic verification via facility public keys from database (`VERIFIED`, `TAMPERED`, `UNKNOWN_SIGNER`, `PATIENT_UPLOADED`).
-  - Server never signs; `src/` never reads `keys/` (verified by automated test).
-  - Verification on read detects any direct database alteration as `TAMPERED`.
-  - Database triggers block `UPDATE`, `DELETE`, and `TRUNCATE` on `ClinicalRecord`.
-  - `npm run demo:lab` (`scripts/lab-client.js`) logs in as `mlt.silva`, signs a FHIR bundle, and uploads verified records.
-- NEXT STEP: Wait for user direction to begin Phase 5 (Access engine: three keys rule, emergency summary break-glass, patient consent controls).
+- Phases 0-5 DONE. `npm test` (in `server/`): 125 tests, all passing.
+- Phase 5 complete:
+  - Three Keys Rule: Card scan + active doctor session + registered hospital creates a scoped 90-day AccessGrant ledger entry.
+  - Sensitive records require Card + Patient PIN verification (bcrypt cost 12).
+  - Document hiding via separate consent ledger (`HiddenRecord`), preserving append-only clinical records.
+  - Provider blocking (`PatientProviderBlock`) with immediate revocation of active grants.
+  - Patient opt-out and opt-in controls.
+  - Emergency summary (`GET /patients/:healthId/emergency`) cardless minimal facts.
+  - Emergency break-glass override (`POST /access/break-glass`, `EMERGENCY_OVERRIDE_ACCESSED`) with mandatory justification and high-priority audit trail.
+  - Parental controls (<16 years) vs independent access (>=16 years).
+  - Access ledger timeline ("Who viewed my record").
+- NEXT STEP: Wait for user direction to begin Phase 6 (E-prescriptions and medication list).
 
 A health card for every citizen. A doctor scans the card and sees the patient's
 complete, verified history from every hospital and lab. Inspired by Germany (eGK + ePA),
@@ -203,7 +206,7 @@ web/                  Next.js portals (Phase 7)
   detected as TAMPERED, a TAMPERED / UNKNOWN_SIGNER / other-facility upload is
   rejected and audited, and the `src/` must-not-read-`keys/` test passes.
 
-### Phase 5: Access engine (the heart of Doc365)
+### Phase 5: Access engine (the heart of Doc365): DONE
 - Card scan + logged-in doctor + registered facility → AccessGrant for 90 days (from `.env`).
 - Sensitive records need card + patient PIN.
 - Emergency summary endpoint; break-glass access needs a reason and is flagged in the audit log.
