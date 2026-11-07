@@ -41,12 +41,14 @@ model Patient {
 
   cards     Card[]
   // Links where this patient is the child
-  guardians GuardianLink[] @relation("child")
+  guardians GuardianLink[]   @relation("child")
   // Links where this patient is the guardian
-  children  GuardianLink[] @relation("guardian")
-  // Phase 3: the patient's own login (PATIENT / GUARDIAN), and every audit row about them
+  children  GuardianLink[]   @relation("guardian")
+  // Phase 3: the patient's own login, and every audit row about them
   user      User?
   auditLogs AuditLog[]
+  // Phase 4: clinical records (every version)
+  records   ClinicalRecord[]
 }
 
 // FHIR R4 administrative gender values, lowercase exactly as FHIR uses them,
@@ -133,8 +135,10 @@ model Facility {
   publicKeyPem String?
   createdAt    DateTime     @default(now())
 
-  memberships StaffMembership[]
-  auditLogs   AuditLog[]
+  memberships   StaffMembership[]
+  auditLogs     AuditLog[]
+  // Phase 4: records this facility signed
+  signedRecords ClinicalRecord[]
 }
 
 enum UserStatus {
@@ -159,8 +163,10 @@ model User {
   patient      Patient?   @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   createdAt    DateTime   @default(now())
 
-  memberships StaffMembership[]
-  auditLogs   AuditLog[]
+  memberships     StaffMembership[]
+  auditLogs       AuditLog[]
+  // Phase 4: records this person uploaded
+  uploadedRecords ClinicalRecord[]
 }
 
 // Staff roles from DESIGN.md section 5. PATIENT is not here: patient access comes
@@ -194,7 +200,9 @@ model StaffMembership {
   status     MembershipStatus @default(ACTIVE)
   createdAt  DateTime         @default(now())
 
-  auditLogs AuditLog[]
+  auditLogs       AuditLog[]
+  // Phase 4: records uploaded in this membership
+  uploadedRecords ClinicalRecord[]
 
   @@unique([userId, facilityId, role])
   @@index([facilityId])
@@ -236,4 +244,64 @@ model AuditLog {
   @@index([patientId, at])
   @@index([userId, at])
   @@index([facilityId, at])
+}
+
+// ---------- Phase 4: clinical records (signed, append-only) ----------
+
+enum RecordSource {
+  FACILITY_SIGNED // signed by the facility BEFORE upload; the server only verified it
+  PATIENT_UPLOADED // no signature: always shown as unverified
+}
+
+// FHIR DiagnosticReport.status values used for versions
+enum RecordStatus {
+  final
+  amended
+  entered_in_error @map("entered-in-error")
+}
+
+// One row per VERSION of a record. Rows are never changed or deleted (hand-written
+// trigger "ClinicalRecord_append_only"): a correction is a new row.
+// The server never signs (DESIGN.md section 4). It stores exactly what the facility
+// signed (bundle + provenance) and checks the signature again on every read, so a
+// row changed directly in the database shows as TAMPERED.
+model ClinicalRecord {
+  id                     String           @id @default(uuid()) @db.Uuid
+  // All versions of one record share lineageId (= the first version's id)
+  lineageId              String           @db.Uuid
+  version                Int
+  // The version this one corrects (null for version 1). Each version can be
+  // corrected only once, so history is a straight line.
+  previousVersionId      String?          @unique @db.Uuid
+  previousVersion        ClinicalRecord?  @relation("RecordVersions", fields: [previousVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  nextVersion            ClinicalRecord?  @relation("RecordVersions")
+  // Whose record: taken from the Health ID inside the signed bundle
+  patientId              String           @db.Uuid
+  patient                Patient          @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  source                 RecordSource
+  status                 RecordStatus
+  // The main resource, e.g. "DiagnosticReport/report-0001" (same in every version)
+  mainResource           String
+  // The facility that signed it (= the uploader's membership facility). Empty for patient uploads.
+  facilityId             String?          @db.Uuid
+  facility               Facility?        @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  uploadedByUserId       String           @db.Uuid
+  uploadedBy             User             @relation(fields: [uploadedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  uploadedByMembershipId String?          @db.Uuid
+  uploadedByMembership   StaffMembership? @relation(fields: [uploadedByMembershipId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  // Exactly what was signed and sent
+  bundle                 Json
+  provenance             Json?
+  // SHA-256 of the CANONICALIZED bundle (sorted keys, src/core/canonicalize.js), so the
+  // same signed bundle cannot be uploaded twice even with its JSON keys reordered
+  bundleSha256           String
+  // SHA-256 of the facility public key that verified the signature at upload.
+  // Required for FACILITY_SIGNED, empty for patient uploads (CHECK in the migration).
+  // Key rotation is out of scope, but this records which key was trusted.
+  signingKeyFingerprint  String?
+  createdAt              DateTime         @default(now())
+
+  @@unique([lineageId, version])
+  @@unique([facilityId, bundleSha256])
+  @@index([patientId, createdAt])
 }
