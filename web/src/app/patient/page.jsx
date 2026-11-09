@@ -157,8 +157,15 @@ function extractHealthTrends(records) {
 
 export default function PatientPortal() {
   const [currentUser, setCurrentUser] = useState(null);
-  const patientHealthId = 'DEMO-100001-7'; // Kumari Jayasinghe
-  const [activeTab, setActiveTab] = useState('card'); // 'card' | 'ledger' | 'consent' | 'pin'
+  const [activeTab, setActiveTab] = useState('card'); // 'card' | 'trends' | 'ledger' | 'consent'
+
+  // Dynamic citizen identity
+  const citizenName = currentUser?.fullName || currentUser?.label || 'Herath Mudiyanselage Kumari Jayasinghe';
+  const activeHealthId = currentUser?.patientId || currentUser?.healthId || currentUser?.ownPatientId || 'DEMO-100001-7';
+  const citizenDob = currentUser?.dateOfBirth || '1990-08-03';
+  const citizenSex = currentUser?.sex || 'female';
+  const citizenNic = currentUser?.nic || 'DEMO-NIC-199071500345';
+  const citizenCardSerial = currentUser?.cardSerial || 'CARD-100001-1';
 
   // Data
   const [ledger, setLedger] = useState([]);
@@ -181,20 +188,21 @@ export default function PatientPortal() {
         const res = await login({ username: 'kumari', password, asPatient: true });
         if (res.ok) {
           setCurrentUser(res.data.session);
+          loadPatientData(res.data.session.ownPatientId || 'DEMO-100001-7');
         }
       } else {
         setCurrentUser(user);
+        loadPatientData(user.patientId || user.healthId || user.ownPatientId || 'DEMO-100001-7');
       }
-      loadPatientData();
     }
     initPatient();
   }, []);
 
-  const loadPatientData = async () => {
+  const loadPatientData = async (healthId = activeHealthId) => {
     setLoading(true);
     const [ledgerRes, recRes] = await Promise.all([
-      getAccessLedger(patientHealthId),
-      getPatientRecords(patientHealthId),
+      getAccessLedger(healthId),
+      getPatientRecords(healthId),
     ]);
     setLoading(false);
 
@@ -211,9 +219,9 @@ export default function PatientPortal() {
     setStatusMessage(null);
     let res;
     if (record.isHidden) {
-      res = await unhideRecord(patientHealthId, record.lineageId);
+      res = await unhideRecord(activeHealthId, record.lineageId);
     } else {
-      res = await hideRecord(patientHealthId, record.lineageId, 'Patient masked from routine view');
+      res = await hideRecord(activeHealthId, record.lineageId, 'Patient masked from routine view');
     }
 
     if (res.ok) {
@@ -221,7 +229,7 @@ export default function PatientPortal() {
         type: 'success',
         text: `Document status updated: ${record.isHidden ? 'Now Visible' : 'Hidden from Doctors'}.`,
       });
-      loadPatientData();
+      loadPatientData(activeHealthId);
     } else {
       setStatusMessage({ type: 'error', text: res.error.message });
     }
@@ -231,14 +239,13 @@ export default function PatientPortal() {
   const handleBlockProvider = async (e) => {
     e.preventDefault();
     setStatusMessage(null);
-    // In demo, resolve facility code to UUID via mock or pass facilityCode
-    const res = await blockProvider(patientHealthId, {
+    const res = await blockProvider(activeHealthId, {
       reason: blockReason,
     });
 
     if (res.ok) {
       setStatusMessage({ type: 'success', text: 'Provider blocked. Any active consultation grants revoked immediately.' });
-      loadPatientData();
+      loadPatientData(activeHealthId);
     } else {
       setStatusMessage({ type: 'error', text: res.error.message });
     }
@@ -251,7 +258,7 @@ export default function PatientPortal() {
       setStatusMessage({ type: 'error', text: 'PIN must be 4 to 6 digits.' });
       return;
     }
-    const res = await setPatientPin(patientHealthId, pinInput);
+    const res = await setPatientPin(activeHealthId, pinInput);
     if (res.ok) {
       setStatusMessage({ type: 'success', text: 'Sensitive records PIN updated successfully.' });
       setPinInput('');
@@ -264,10 +271,10 @@ export default function PatientPortal() {
   const handleToggleOptOut = async () => {
     let res;
     if (isOptedOut) {
-      res = await optInPatient(patientHealthId);
+      res = await optInPatient(activeHealthId);
       if (res.ok) setIsOptedOut(false);
     } else {
-      res = await optOutPatient(patientHealthId, 'Patient preference');
+      res = await optOutPatient(activeHealthId, 'Patient preference');
       if (res.ok) setIsOptedOut(true);
     }
     if (res.ok) {
@@ -296,7 +303,7 @@ export default function PatientPortal() {
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
-              Citizen: <span className="font-semibold text-slate-700">Herath Mudiyanselage Kumari Jayasinghe</span> ({patientHealthId})
+              Citizen: <span className="font-semibold text-slate-700">{citizenName}</span> ({activeHealthId})
             </p>
           </div>
         </div>
@@ -360,12 +367,12 @@ export default function PatientPortal() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           <div className="flex justify-center">
             <HealthCard
-              healthId="DEMO-100001-7"
-              fullName="Herath Mudiyanselage Kumari Jayasinghe"
-              dateOfBirth="1990-08-03"
-              sex="female"
-              nic="DEMO-NIC-199071500345"
-              cardSerial="CARD-100001-1"
+              healthId={activeHealthId}
+              fullName={citizenName}
+              dateOfBirth={citizenDob}
+              sex={citizenSex}
+              nic={citizenNic}
+              cardSerial={citizenCardSerial}
               status="ACTIVE"
             />
           </div>

@@ -1,14 +1,19 @@
 # Doc365: Trusted Health Records for Sri Lanka (learning prototype)
 
 ## Current status (updated 2026-11-09)
-- Phases 0-7 DONE. `npm test` (in `server/`): 134 tests, all passing. Next.js build (`web/`): passing.
-- Phase 7 complete:
-  - Next.js 14 App Router + Tailwind CSS web portal suite implemented in `web/`.
-  - Doctor Portal (`/doctor`): Three-Keys card tap simulation (90-day grant), Ed25519 cryptographic trust badges (`VERIFIED`), sensitive PIN unlock gate, e-prescription authoring with live DDI/Allergy safety override modal, emergency break-glass override, and "Order Diagnostic Tests" pad generating FHIR ServiceRequests.
-  - Laboratory Portal (`/lab`): Dedicated MLT workspace for `mlt.silva` at `Demo Lab Colombo`. Allows health card / Health ID lookup of pending lab orders, structured result entry (FPG, HbA1c, Cholesterol, Creatinine), Ed25519 facility signing, and report upload completing the order.
-  - Pharmacy Portal (`/pharmacy`): Scoped prescription QR scanner, strict zero full-record leakage guarantee, dispensing execution with refill management, prominent Red "ISSUED / DISPENSED" badge, and 409 Conflict re-use prevention.
-  - Patient Self-Sovereignty Portal (`/patient`): Photorealistic Sri Lanka Digital Health Card with live QR code, "Health Trends & Biomarker Analytics" parsing historical Observations (FBS, HbA1c, Cholesterol, Creatinine) with SVG trend charts and status indicators (Normal / Elevated / High), "Who Viewed My Record" access ledger timeline, document masking (Hide/Unhide), provider blocking, and confidential PIN setup.
-  - Portal Hub (`/`): Central landing page with one-click quick login buttons for all pre-seeded test personas (Kumari, Dr. Perera, MLT Silva, Pharmacist Fernando).
+- Phases 0-8 DONE. `npm test` (in `server/`): 139 tests, all passing. Next.js build (`web/`): passing (8 routes generated).
+- Phase 8 complete:
+  - Multi-Tenant Role Onboarding & Credentials:
+    * Schema additions: `Facility.licenseNumber`, `User.slmcNumber` (@unique), `User.specialization`.
+    * Public self-service registration endpoints: `POST /api/auth/register/patient` (User + Patient with Luhn Health ID + active Digital Card), `POST /api/auth/register/doctor` (SLMC validation + facility membership), `POST /api/auth/register/pharmacy` (NMRA license + facility + pharmacist membership), `POST /api/auth/register/lab` (PHSRC registration + facility + MLT membership + Ed25519 signing key), and `GET /api/facilities`.
+    * Dynamic session injection: Logged-in tokens now dynamically populate doctor SLMC credentials, active hospital facility, pharmacist NMRA license, and lab PHSRC registration without hardcoding demo personas.
+  - Specialized Modern UI Layouts:
+    * Dedicated Multi-Role Registration Portal (`/register`): Guided multi-step onboarding for Citizens, Doctors, Pharmacies, and Diagnostic Labs.
+    * Doctor Portal (`/doctor`): Dark slate clinical command center with persistent hospital switcher dropdown, live patient consultation queue with triage filters (`ALL`, `WAITING`, `IN_CONSULTATION`, `COMPLETED`), wait duration timers, and "Complete Consultation" status sync.
+    * Pharmacy Portal (`/pharmacy`): Minimalist POS-style counter layout with prominent barcode/QR reader focus, large typography for units and refills, dynamic NMRA license header, and bold red `ISSUED` stamps with 409 re-use prevention.
+    * Laboratory Portal (`/lab`): Diagnostic worklist, structured tabular observation inputs (Analyte, LOINC, Value, Unit, Reference Interval), and automated reference range triggers evaluating readings (Normal, Elevated, High/Alert).
+    * Patient Portal (`/patient`): Dynamic citizen dashboard with 3D-styled Digital Health Card, SVG biometric trend charts, and privacy switches.
+    * Navigation & Hub (`Navbar.jsx` & `/`): Onboarding CTAs, role credential badges, and multi-tenant portal routing.
 
 A health card for every citizen. A doctor scans the card and sees the patient's
 complete, verified history from every hospital and lab. Inspired by Germany (eGK + ePA),

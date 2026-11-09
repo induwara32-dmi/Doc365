@@ -70,11 +70,29 @@ export default function Navbar() {
 
         {/* Active Session & Actions */}
         <div className="flex items-center gap-3">
+          <Link
+            href="/register"
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
+              pathname === '/register'
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                : 'border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <span>Register / Join</span>
+          </Link>
+
           {user ? (
             <div className="flex items-center gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-bold text-slate-800">{user.role || 'Citizen'}</div>
-                <div className="text-[11px] text-slate-500 truncate max-w-[200px]">{user.label}</div>
+                <div className="text-xs font-bold text-slate-800 flex items-center justify-end gap-1">
+                  <span>{user.role || 'Citizen'}</span>
+                  {user.slmcNumber && (
+                    <span className="text-[10px] font-mono px-1 rounded bg-emerald-100 text-emerald-800">
+                      {user.slmcNumber}
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-slate-500 truncate max-w-[200px]">{user.fullName || user.label}</div>
               </div>
               <button
                 onClick={handleLogout}
@@ -89,7 +107,7 @@ export default function Navbar() {
               href="/"
               className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
             >
-              Select Demo Persona
+              Demo Hub
             </Link>
           )}
         </div>

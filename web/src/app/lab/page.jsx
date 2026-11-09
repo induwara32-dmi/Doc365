@@ -36,6 +36,7 @@ export default function LabPortal() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
+  const [worklistTab, setWorklistTab] = useState('PENDING'); // 'PENDING' | 'COMPLETED' | 'ALL'
 
   // Result Entry Pad state
   const [activeOrder, setActiveOrder] = useState(null);
@@ -77,7 +78,6 @@ export default function LabPortal() {
 
     if (res.ok) {
       setOrders(res.data.orders || []);
-      // If there is an active order and it matches current test preset, set default values
       const pending = res.data.orders?.find((o) => o.status === 'ORDERED');
       if (pending) {
         selectOrderForResultEntry(pending);
@@ -107,8 +107,41 @@ export default function LabPortal() {
       setObservationUnit('units');
       setReferenceRange('Reference range on file');
     }
-    setTechnicianNotes(`Analysis verified at Demo Lab Colombo. Specimen collected in appropriate container.`);
+    setTechnicianNotes(`Analysis verified at ${currentUser?.facilityName || 'Demo Lab Colombo'}. Specimen collected in appropriate container.`);
   };
+
+  // Calculate reference range evaluation trigger
+  const evaluateObservation = () => {
+    const val = parseFloat(observationValue);
+    if (isNaN(val) || !activeOrder) return null;
+
+    const code = activeOrder.testCode;
+    if (code === '1558-6') {
+      // Glucose
+      if (val < 70) return { status: 'LOW', label: 'Hypoglycemia Alert', color: 'bg-blue-100 text-blue-800 border-blue-300' };
+      if (val <= 99) return { status: 'NORMAL', label: 'Normal Fasting Range', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+      if (val <= 125) return { status: 'ELEVATED', label: 'Impaired / Pre-diabetic Range', color: 'bg-amber-100 text-amber-800 border-amber-300' };
+      return { status: 'HIGH', label: 'Hyperglycemia / Diabetic Range (Trigger Alert)', color: 'bg-red-100 text-red-900 border-red-300 font-bold' };
+    } else if (code === '4548-4') {
+      // HbA1c
+      if (val < 5.7) return { status: 'NORMAL', label: 'Optimal (<5.7%)', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+      if (val <= 6.4) return { status: 'ELEVATED', label: 'Pre-diabetes Range (5.7 - 6.4%)', color: 'bg-amber-100 text-amber-800 border-amber-300' };
+      return { status: 'HIGH', label: 'Elevated HbA1c (≥6.5%)', color: 'bg-red-100 text-red-900 border-red-300 font-bold' };
+    } else if (code === '2093-3') {
+      // Cholesterol
+      if (val < 200) return { status: 'NORMAL', label: 'Desirable (<200 mg/dL)', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+      if (val <= 239) return { status: 'ELEVATED', label: 'Borderline High (200 - 239 mg/dL)', color: 'bg-amber-100 text-amber-800 border-amber-300' };
+      return { status: 'HIGH', label: 'High Cholesterol (≥240 mg/dL)', color: 'bg-red-100 text-red-900 border-red-300 font-bold' };
+    } else if (code === '2160-0') {
+      // Creatinine
+      if (val <= 1.3) return { status: 'NORMAL', label: 'Normal Renal Function (0.7 - 1.3 mg/dL)', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+      return { status: 'HIGH', label: 'Elevated Serum Creatinine (Renal Stress)', color: 'bg-red-100 text-red-900 border-red-300 font-bold' };
+    }
+
+    return { status: 'NORMAL', label: 'Within Reference Range', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+  };
+
+  const evalResult = evaluateObservation();
 
   // Sign & Upload Report (Ed25519 Facility Signature)
   const handleSignAndUpload = async (e) => {
@@ -249,29 +282,31 @@ export default function LabPortal() {
 
   return (
     <div className="space-y-8">
-      {/* Session Header */}
+      {/* Session Header with Dynamic MLT & PHSRC Credentials */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-600 to-yellow-500 text-white flex items-center justify-center font-bold shadow-md shadow-amber-500/20">
             <FlaskConical className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-slate-900">Laboratory Diagnostic & Fulfillment Portal</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg font-bold text-slate-900">Laboratory Diagnostic Worklist & Fulfillment</h1>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                Facility Signed
+                Diagnostic Facility
+              </span>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                PHSRC #{currentUser?.licenseNumber || 'PHSRC-LAB-2024-9120'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium">
-              Authenticated Session:{' '}
-              <span className="font-semibold text-slate-700">
-                {currentUser?.label || 'Demo Lab Colombo, MLT A. Silva'}
-              </span>
+            <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-2">
+              <span>{currentUser?.facilityName || 'National Diagnostic Laboratory'}</span>
+              <span>&bull;</span>
+              <span>MLT: <strong className="text-slate-800">{currentUser?.fullName || currentUser?.label || 'A. Silva'}</strong></span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200">
+        <div className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 self-start sm:self-center">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
           <span>Ed25519 Cryptographic Signer Active</span>
         </div>
@@ -481,55 +516,78 @@ export default function LabPortal() {
                 </span>
               </div>
 
+              {/* Structured Tabular Observation Input Pad */}
               <form onSubmit={handleSignAndUpload} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Observation Value (Numeric)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      required
-                      value={observationValue}
-                      onChange={(e) => setObservationValue(e.target.value)}
-                      placeholder="e.g. 104"
-                      className="w-full text-xs font-bold p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Measurement Unit
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={observationUnit}
-                      onChange={(e) => setObservationUnit(e.target.value)}
-                      placeholder="e.g. mg/dL, %"
-                      className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Reference Interval
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={referenceRange}
-                      onChange={(e) => setReferenceRange(e.target.value)}
-                      placeholder="e.g. 70 - 99 mg/dL"
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
+                      <tr>
+                        <th className="py-2.5 px-3">Analyte / Test</th>
+                        <th className="py-2.5 px-3">LOINC</th>
+                        <th className="py-2.5 px-3 w-32">Observed Value</th>
+                        <th className="py-2.5 px-3 w-24">Unit</th>
+                        <th className="py-2.5 px-3">Standard Reference Interval</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      <tr>
+                        <td className="py-3 px-3 font-bold text-slate-900">{activeOrder.testName}</td>
+                        <td className="py-3 px-3 font-mono text-slate-500">{activeOrder.testCode}</td>
+                        <td className="py-3 px-3">
+                          <input
+                            type="number"
+                            step="any"
+                            required
+                            value={observationValue}
+                            onChange={(e) => setObservationValue(e.target.value)}
+                            placeholder="Value"
+                            className="w-full text-sm font-bold p-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"
+                          />
+                        </td>
+                        <td className="py-3 px-3">
+                          <input
+                            type="text"
+                            required
+                            value={observationUnit}
+                            onChange={(e) => setObservationUnit(e.target.value)}
+                            placeholder="Unit"
+                            className="w-full text-xs font-mono p-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-700"
+                          />
+                        </td>
+                        <td className="py-3 px-3">
+                          <input
+                            type="text"
+                            required
+                            value={referenceRange}
+                            onChange={(e) => setReferenceRange(e.target.value)}
+                            placeholder="Range"
+                            className="w-full text-xs p-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-700"
+                          />
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
+
+                {/* Reference Range Trigger Banner */}
+                {evalResult && (
+                  <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs ${evalResult.color}`}>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 flex-shrink-0" />
+                      <div>
+                        <span className="font-bold">Automated Clinical Trigger: </span>
+                        <span>{evalResult.label}</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/80 border border-current">
+                      Status: {evalResult.status}
+                    </span>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">
-                    Pathologist / Technician Remarks
+                    Pathologist / Medical Technologist Remarks
                   </label>
                   <textarea
                     rows={2}

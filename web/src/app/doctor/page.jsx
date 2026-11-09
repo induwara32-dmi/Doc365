@@ -17,6 +17,11 @@ import {
   PlusCircle,
   FileText,
   FlaskConical,
+  Activity,
+  Users,
+  ChevronDown,
+  Check,
+  ArrowRight,
 } from 'lucide-react';
 import {
   scanCard,
@@ -30,6 +35,7 @@ import {
   recordAllergy,
   getCurrentUser,
   login,
+  getPublicFacilities,
 } from '../../lib/api';
 import { DEMO_PATIENTS, DEMO_DRUGS, DEMO_LAB_TESTS } from '../../lib/demo-data';
 import DdiSafetyModal from '../../components/DdiSafetyModal';
@@ -41,6 +47,43 @@ export default function DoctorPortal() {
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedPatient, setSelectedPatient] = useState(DEMO_PATIENTS[0]);
   const [cardSerial, setCardSerial] = useState('CARD-100001-1');
+
+  // Multi-hospital switcher state
+  const [availableFacilities, setAvailableFacilities] = useState([]);
+  const [activeFacility, setActiveFacility] = useState(null);
+  const [isFacilityDropdownOpen, setIsFacilityDropdownOpen] = useState(false);
+
+  // Live Patient Queue State
+  const [patientQueue, setPatientQueue] = useState([
+    {
+      token: '#01',
+      patient: DEMO_PATIENTS[0],
+      cardSerial: 'CARD-100001-1',
+      status: 'IN_CONSULTATION',
+      complaint: 'Routine Review: Type 2 Diabetes & Hyperlipidemia',
+      triagePriority: 'ROUTINE',
+      waitTime: '10 min ago',
+    },
+    {
+      token: '#02',
+      patient: DEMO_PATIENTS[1],
+      cardSerial: 'CARD-100002-1',
+      status: 'WAITING',
+      complaint: 'Hypertension Followup & Chest Discomfort',
+      triagePriority: 'URGENT',
+      waitTime: '25 min ago',
+    },
+    {
+      token: '#03',
+      patient: DEMO_PATIENTS[2],
+      cardSerial: 'CARD-100003-1',
+      status: 'WAITING',
+      complaint: 'Fasting Blood Sugar & Routine Renal Profile',
+      triagePriority: 'ROUTINE',
+      waitTime: '40 min ago',
+    },
+  ]);
+  const [queueFilter, setQueueFilter] = useState('ALL');
 
   // Consultation state
   const [grant, setGrant] = useState(null);
@@ -93,6 +136,20 @@ export default function DoctorPortal() {
     initDoctor();
   }, []);
 
+  // Load facilities for hospital switcher
+  useEffect(() => {
+    async function loadFacilities() {
+      const res = await getPublicFacilities('HOSPITAL');
+      if (res.ok && res.data.facilities) {
+        setAvailableFacilities(res.data.facilities);
+        const currentFacId = currentUser?.facilityId;
+        const matched = res.data.facilities.find((f) => f.id === currentFacId);
+        setActiveFacility(matched || res.data.facilities[0]);
+      }
+    }
+    loadFacilities();
+  }, [currentUser]);
+
   // Update prescription defaults when drug changes
   const handleDrugChange = (drug) => {
     setSelectedDrug(drug);
@@ -100,6 +157,32 @@ export default function DoctorPortal() {
     setQuantity(drug.quantity);
     setDaysSupply(drug.daysSupply);
     setRepeatsAllowed(drug.repeatsAllowed || 0);
+  };
+
+  // Select patient from queue
+  const handleSelectQueueItem = (item) => {
+    setSelectedPatient(item.patient);
+    setCardSerial(item.cardSerial);
+    setGrant(null);
+    setRecords([]);
+    setEmergencySummary(null);
+    setActiveMedications([]);
+    setPatientQueue((prev) =>
+      prev.map((q) => (q.token === item.token ? { ...q, status: 'IN_CONSULTATION' } : q))
+    );
+  };
+
+  // Complete current consultation
+  const handleCompleteConsultation = () => {
+    setPatientQueue((prev) =>
+      prev.map((q) =>
+        q.patient.healthId === selectedPatient.healthId ? { ...q, status: 'COMPLETED' } : q
+      )
+    );
+    setStatusMessage({
+      type: 'success',
+      text: `Consultation marked complete for ${selectedPatient.fullName}. All cryptographic records verified & synchronized.`,
+    });
   };
 
   // Three-Keys Card Tap Simulation
@@ -115,7 +198,10 @@ export default function DoctorPortal() {
     if (res.ok) {
       setGrant(res.data.grant);
       setIsBreakGlass(false);
-      setStatusMessage({ type: 'success', text: `90-day Consultation Grant established (Expires: ${new Date(res.data.grant.expiresAt).toLocaleDateString()})` });
+      setStatusMessage({
+        type: 'success',
+        text: `90-day Consultation Grant established (Expires: ${new Date(res.data.grant.expiresAt).toLocaleDateString()})`,
+      });
       loadPatientClinicalData(selectedPatient.healthId);
     } else {
       setStatusMessage({ type: 'error', text: res.error.message || 'Card scan failed. Check card status.' });
@@ -135,7 +221,10 @@ export default function DoctorPortal() {
     if (res.ok) {
       setGrant(res.data.grant);
       setIsBreakGlass(true);
-      setStatusMessage({ type: 'warning', text: 'EMERGENCY OVERRIDE ACTIVATED: 24-hour access granted. High-priority audit trail logged.' });
+      setStatusMessage({
+        type: 'warning',
+        text: 'EMERGENCY OVERRIDE ACTIVATED: 24-hour access granted. High-priority audit trail logged.',
+      });
       loadPatientClinicalData(selectedPatient.healthId);
     } else {
       setStatusMessage({ type: 'error', text: res.error.message });
@@ -232,10 +321,8 @@ export default function DoctorPortal() {
         type: 'success',
         text: `Prescription issued: ${res.data.prescription.medicationName} (QR: ${res.data.prescription.prescriptionCode})`,
       });
-      // Refresh medication list
       loadPatientClinicalData(selectedPatient.healthId, unlockedPin);
     } else if (res.status === 422 && res.data?.error?.details?.warnings) {
-      // DDI or Allergy Warning Intercepted!
       setPendingPrescriptionData(payload);
       setDdiWarnings(res.data.error.details.warnings);
       setIsDdiModalOpen(true);
@@ -244,35 +331,150 @@ export default function DoctorPortal() {
     }
   };
 
+  const filteredQueue = patientQueue.filter((q) => {
+    if (queueFilter === 'ALL') return true;
+    return q.status === queueFilter;
+  });
+
+  const waitingCount = patientQueue.filter((q) => q.status === 'WAITING').length;
+  const inConsultCount = patientQueue.filter((q) => q.status === 'IN_CONSULTATION').length;
+  const completedCount = patientQueue.filter((q) => q.status === 'COMPLETED').length;
+
   return (
-    <div className="space-y-8">
-      {/* Top Banner / Session Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-            <Stethoscope className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-slate-900">Doctor Clinical Consultation Portal</h1>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                Three-Keys Rule
-              </span>
+    <div className="space-y-6">
+      {/* Clinical Command Center Header (Dark Slate Aesthetic) */}
+      <div className="rounded-3xl bg-slate-950 border border-slate-800 text-white p-6 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          {/* Doctor Profile & Credentials */}
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center font-bold shadow-lg shadow-emerald-500/20">
+              <Stethoscope className="w-7 h-7" />
             </div>
-            <p className="text-xs text-slate-500 font-medium">
-              Authenticated Session: <span className="font-semibold text-slate-700">{currentUser?.label || 'Dr. R. Perera'}</span>
-            </p>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl font-bold tracking-tight text-white">
+                  {currentUser?.fullName || currentUser?.label || 'Dr. R. Perera'}
+                </h1>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300">
+                  {currentUser?.slmcNumber || 'SLMC #48291'}
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                  {currentUser?.specialization || currentUser?.jobTitle || 'Consultant Physician'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+                <span>National Clinical Command Center</span>
+                <span>&bull;</span>
+                <span className="text-emerald-400 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  3-Keys Access Engine Live
+                </span>
+              </p>
+            </div>
+          </div>
+
+          {/* Persistent Hospital Switcher & Emergency Break-Glass */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Hospital Switcher */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsFacilityDropdownOpen(!isFacilityDropdownOpen)}
+                className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-xs text-left transition-colors"
+              >
+                <Building2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <div>
+                  <div className="text-[10px] text-slate-400 uppercase font-semibold">Active Hospital Facility</div>
+                  <div className="font-bold text-white flex items-center gap-1.5">
+                    <span>{activeFacility?.name || currentUser?.facilityName || 'Colombo National Hospital'}</span>
+                    <span className="text-[10px] font-mono text-emerald-400">
+                      [{activeFacility?.code || currentUser?.facilityCode || 'CNH-01'}]
+                    </span>
+                  </div>
+                </div>
+                <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />
+              </button>
+
+              {isFacilityDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-2 z-50 text-xs">
+                  <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800">
+                    Switch Hospital Context
+                  </div>
+                  <div className="py-1 space-y-1 max-h-56 overflow-y-auto">
+                    {availableFacilities.map((fac) => (
+                      <button
+                        key={fac.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveFacility(fac);
+                          setIsFacilityDropdownOpen(false);
+                          setStatusMessage({
+                            type: 'success',
+                            text: `Active clinical facility switched to ${fac.name} (${fac.code})`,
+                          });
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-xl transition-colors flex items-center justify-between ${
+                          activeFacility?.id === fac.id
+                            ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40'
+                            : 'text-slate-300 hover:bg-slate-800'
+                        }`}
+                      >
+                        <div>
+                          <div>{fac.name}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">{fac.code} &bull; {fac.type}</div>
+                        </div>
+                        {activeFacility?.id === fac.id && <Check className="w-4 h-4 text-emerald-400" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Emergency Action */}
+            <button
+              onClick={() => setIsBreakGlassOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/30 transition-all"
+            >
+              <Siren className="w-4 h-4 animate-pulse" />
+              <span>Emergency Break-Glass</span>
+            </button>
           </div>
         </div>
 
-        {/* Emergency Action */}
-        <button
-          onClick={() => setIsBreakGlassOpen(true)}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20 transition-all"
-        >
-          <Siren className="w-4 h-4 animate-pulse" />
-          <span>Emergency Break-Glass</span>
-        </button>
+        {/* Telemetry Indicator Ribbon */}
+        <div className="mt-5 pt-4 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-slate-400">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Access Gate</div>
+            <div className="text-emerald-400 font-semibold flex items-center gap-1.5 mt-0.5">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>3-Keys NFC Token Gate</span>
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Safety Verification</div>
+            <div className="text-emerald-400 font-semibold flex items-center gap-1.5 mt-0.5">
+              <Pill className="w-3.5 h-3.5" />
+              <span>DDI & Allergy Interceptor</span>
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Diagnostic Network</div>
+            <div className="text-emerald-400 font-semibold flex items-center gap-1.5 mt-0.5">
+              <FlaskConical className="w-3.5 h-3.5" />
+              <span>FHIR ServiceRequest Live</span>
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Audit Level</div>
+            <div className="text-slate-200 font-semibold flex items-center gap-1.5 mt-0.5">
+              <Lock className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Tamper-Evident Ledger</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {statusMessage && (
@@ -296,38 +498,125 @@ export default function DoctorPortal() {
 
       {/* Main Clinical Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Patient Lookup, Card Tap & Identity */}
+        {/* Left Column: Live Consultation Queue, Card Tap & Identity */}
         <div className="space-y-6">
-          {/* Card Tap / Access Establishment Box */}
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-emerald-600" />
-              <span>1. Present Citizen Health Card</span>
-            </h2>
+          {/* Live Patient Queue Box */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Users className="w-4 h-4 text-emerald-600" />
+                <span>Live Patient Queue</span>
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                {patientQueue.length} In Clinic
+              </span>
+            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Select Patient</label>
-              <div className="grid grid-cols-1 gap-1.5">
-                {DEMO_PATIENTS.map((p) => (
-                  <button
-                    key={p.healthId}
-                    type="button"
-                    onClick={() => {
-                      setSelectedPatient(p);
-                      setGrant(null);
-                      setRecords([]);
-                    }}
-                    className={`text-left p-2.5 rounded-xl border text-xs transition-all ${
-                      selectedPatient.healthId === p.healthId
-                        ? 'border-emerald-500 bg-emerald-50/50 text-emerald-950 font-bold'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+            {/* Queue Filter Tabs */}
+            <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-slate-100 text-[11px] font-semibold text-slate-600">
+              <button
+                type="button"
+                onClick={() => setQueueFilter('ALL')}
+                className={`py-1 rounded-lg text-center transition-all ${
+                  queueFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'hover:text-slate-900'
+                }`}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setQueueFilter('WAITING')}
+                className={`py-1 rounded-lg text-center transition-all ${
+                  queueFilter === 'WAITING' ? 'bg-white text-amber-700 shadow-sm font-bold' : 'hover:text-slate-900'
+                }`}
+              >
+                Wait ({waitingCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setQueueFilter('IN_CONSULTATION')}
+                className={`py-1 rounded-lg text-center transition-all ${
+                  queueFilter === 'IN_CONSULTATION' ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'hover:text-slate-900'
+                }`}
+              >
+                Active ({inConsultCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setQueueFilter('COMPLETED')}
+                className={`py-1 rounded-lg text-center transition-all ${
+                  queueFilter === 'COMPLETED' ? 'bg-white text-slate-700 shadow-sm font-bold' : 'hover:text-slate-900'
+                }`}
+              >
+                Done ({completedCount})
+              </button>
+            </div>
+
+            {/* Queue Items */}
+            <div className="space-y-2">
+              {filteredQueue.map((item) => {
+                const isSelected = selectedPatient.healthId === item.patient.healthId;
+                const isUrgent = item.triagePriority === 'URGENT';
+                const isCompleted = item.status === 'COMPLETED';
+
+                return (
+                  <div
+                    key={item.token}
+                    onClick={() => handleSelectQueueItem(item)}
+                    className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-emerald-500 bg-emerald-50/50 shadow-sm ring-1 ring-emerald-500'
+                        : 'border-slate-200 hover:bg-slate-50'
                     }`}
                   >
-                    <div>{p.shortName}</div>
-                    <div className="text-[11px] font-mono text-slate-500">{p.healthId}</div>
-                  </button>
-                ))}
-              </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <span className="font-mono text-emerald-700 bg-white border border-emerald-200 px-1.5 py-0.2 rounded text-[10px]">
+                          {item.token}
+                        </span>
+                        <span className="text-slate-900">{item.patient.fullName}</span>
+                      </div>
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                          isCompleted
+                            ? 'bg-slate-100 text-slate-600'
+                            : item.status === 'IN_CONSULTATION'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : isUrgent
+                            ? 'bg-red-100 text-red-800 animate-pulse'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        {item.status === 'IN_CONSULTATION' ? 'Active' : item.status}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-600 mb-1 line-clamp-1">{item.complaint}</div>
+
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                      <span>{item.patient.healthId}</span>
+                      <span>{item.waitTime}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Three-Keys Card Tap Station */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+            <h2 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                <span>NFC Card Tap Station</span>
+              </span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">3-Keys Gate</span>
+            </h2>
+
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400">Selected Citizen</div>
+              <div className="text-xs font-bold text-slate-900">{selectedPatient.fullName}</div>
+              <div className="text-[11px] font-mono text-emerald-700 font-semibold">{selectedPatient.healthId}</div>
             </div>
 
             <div>
@@ -346,8 +635,19 @@ export default function DoctorPortal() {
               className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50"
             >
               <ShieldCheck className="w-4 h-4" />
-              <span>Tap / Scan Health Card</span>
+              <span>Establish 3-Keys Grant (Card Tap)</span>
             </button>
+
+            {grant && (
+              <button
+                type="button"
+                onClick={handleCompleteConsultation}
+                className="w-full py-2 px-4 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center gap-1.5 transition-all"
+              >
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Mark Consultation Complete</span>
+              </button>
+            )}
           </div>
 
           {/* Access Grant Status Badge */}

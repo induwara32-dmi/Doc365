@@ -15,6 +15,9 @@ import {
   ArrowRight,
   PackageCheck,
   AlertTriangle,
+  Scan,
+  Barcode,
+  Sparkles,
 } from 'lucide-react';
 import { scanPrescription, dispensePrescription, getCurrentUser, login } from '../../lib/api';
 
@@ -49,19 +52,20 @@ export default function PharmacyPortal() {
   }, []);
 
   // Handle Scan QR
-  const handleScan = async (e) => {
-    if (e) e.preventDefault();
-    if (!prescriptionCode.trim()) return;
+  const handleScan = async (codeToScan = null) => {
+    const code = (codeToScan || prescriptionCode).trim();
+    if (!code) return;
 
     setLoading(true);
     setStatusMessage(null);
     setDispenseResult(null);
 
-    const res = await scanPrescription(prescriptionCode.trim());
+    const res = await scanPrescription(code);
     setLoading(false);
 
     if (res.ok) {
       setScannedData(res.data);
+      setPrescriptionCode(code);
       setQuantityToDispense(res.data.prescription.quantity);
       setDaysSupply(res.data.prescription.daysSupply);
       setStatusMessage({
@@ -95,7 +99,7 @@ export default function PharmacyPortal() {
         text: `Successfully dispensed! State is now: ${res.data.prescription.dispenseState}`,
       });
       // Refresh scanned view
-      handleScan();
+      handleScan(prescriptionCode.trim());
     } else if (res.status === 409 || res.data?.error?.code === 'PRESCRIPTION_ALREADY_DISPENSED') {
       setStatusMessage({
         type: 'security_block',
@@ -107,29 +111,34 @@ export default function PharmacyPortal() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Session Header */}
+    <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Dynamic Header & NMRA License */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-sky-600 to-cyan-500 text-white flex items-center justify-center font-bold shadow-md shadow-sky-500/20">
             <Pill className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-slate-900">Pharmacy Dispense & Verification Portal</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg font-bold text-slate-900">Pharmacy POS Counter & Verification</h1>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-100 text-sky-800">
-                Scoped Access
+                Scoped Pharmacy Gateway
+              </span>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                NMRA #{currentUser?.licenseNumber || 'NMRA-PH-2024-8841'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium">
-              Authenticated Session: <span className="font-semibold text-slate-700">{currentUser?.label || 'Demo Pharmacy Colombo, Pharmacist T. Fernando'}</span>
+            <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-2">
+              <span>{currentUser?.facilityName || 'National Health Pharmacy'}</span>
+              <span>&bull;</span>
+              <span>Pharmacist: <strong className="text-slate-800">{currentUser?.fullName || currentUser?.label || 'T. Fernando'}</strong></span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200">
+        <div className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 self-start sm:self-center">
           <Lock className="w-4 h-4 text-emerald-600" />
-          <span>Zero Full-Record Leakage Guarantee</span>
+          <span>Zero Full-Record Leakage</span>
         </div>
       </div>
 
@@ -152,77 +161,96 @@ export default function PharmacyPortal() {
         </div>
       )}
 
-      {/* Main Dispensing Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: QR Scan Form */}
+      {/* POS Counter Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: POS Barcode Scanner Focus */}
         <div className="space-y-6">
           <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <QrCode className="w-4 h-4 text-sky-600" />
-              <span>Scan Prescription QR Code</span>
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Barcode className="w-5 h-5 text-sky-600" />
+                <span>Barcode / QR Scanner Focus</span>
+              </h2>
+              <span className="text-[10px] font-mono text-slate-400 uppercase">POS Ready</span>
+            </div>
 
-            <form onSubmit={handleScan} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Prescription Code (from patient QR)
-                </label>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleScan();
+              }}
+              className="space-y-3"
+            >
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Scan className="w-4 h-4" />
+                </div>
                 <input
                   type="text"
                   value={prescriptionCode}
                   onChange={(e) => setPrescriptionCode(e.target.value)}
-                  placeholder="DEMO-RX-YYYYMMDD-XXXXXXXX"
-                  className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 uppercase"
+                  placeholder="Scan or enter RX code..."
+                  className="w-full text-sm font-mono pl-10 pr-4 py-3 rounded-xl border-2 border-slate-300 focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100 uppercase transition-all"
+                  autoFocus
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading || !prescriptionCode.trim()}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-md shadow-sky-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
               >
                 <QrCode className="w-4 h-4" />
-                <span>Verify & Load Prescription</span>
+                <span>{loading ? 'Scanning & Verifying...' : 'Load & Verify Prescription'}</span>
               </button>
             </form>
 
             <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">
-              <div className="font-semibold text-slate-700">Sample Demonstration Codes:</div>
-              <p>Generate one from the Doctor Portal or use any active code from your previous session.</p>
+              <div className="font-semibold text-slate-700">POS Counter Quick Tip:</div>
+              <p>Hardware optical barcode scanners automatically press enter to verify the prescription token instantly.</p>
             </div>
           </div>
 
-          {/* Scoped Privacy Indicator Box */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-md space-y-3 text-xs">
+          {/* Privacy Enforcement Notice */}
+          <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-md space-y-3 text-xs">
             <div className="flex items-center gap-2 text-emerald-400 font-bold uppercase tracking-wider text-[11px]">
               <Lock className="w-4 h-4" />
-              <span>Scoped Access Enforcement</span>
+              <span>Scoped FHIR Gateway Active</span>
             </div>
             <p className="text-slate-300 leading-relaxed text-[11px]">
-              Per Sri Lanka Privacy Framework and DESIGN.md: Pharmacists are strictly restricted to the scanned prescription payload.
-              Full medical history, past admissions, lab reports, and sensitive notes are strictly hidden.
+              Under Sri Lanka Digital Health Architecture, the pharmacy portal receives strictly scoped FHIR MedicationRequest payload.
+              Zero access to past hospital stays, diagnoses, or notes.
             </p>
           </div>
         </div>
 
-        {/* Center & Right Column: Scoped Prescription View & Dispense Pad */}
+        {/* Center & Right Column: Scoped Prescription POS Display */}
         <div className="lg:col-span-2 space-y-6">
           {scannedData ? (
             <div className="space-y-6">
-              {/* Prescription Header & Scoped Data */}
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
+              {/* Prescription Header & Large POS Typography */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5 relative overflow-hidden">
+                {/* Prominent Red ISSUED Stamp if fully dispensed */}
+                {scannedData.prescription.dispenseState === 'DISPENSED' && (
+                  <div className="absolute right-4 top-4 pointer-events-none transform rotate-[-8deg] z-20">
+                    <div className="border-4 border-red-600 text-red-600 font-black text-2xl sm:text-3xl tracking-widest px-4 py-2 rounded-xl bg-white/95 shadow-2xl uppercase">
+                      ISSUED
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
                   <div>
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Prescription Code</span>
-                    <h2 className="text-base font-bold font-mono text-slate-900">{scannedData.prescription.prescriptionCode}</h2>
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Prescription Token</span>
+                    <h2 className="text-lg font-bold font-mono text-slate-900">{scannedData.prescription.prescriptionCode}</h2>
                   </div>
 
                   {/* Status Badge */}
                   <div>
                     {scannedData.prescription.dispenseState === 'DISPENSED' ? (
-                      <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-black tracking-wide bg-red-600 text-white shadow-md shadow-red-600/20">
+                      <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black tracking-wide bg-red-600 text-white shadow-md shadow-red-600/30">
                         <AlertOctagon className="w-4 h-4" />
-                        ISSUED / DISPENSED
+                        DISPENSED / COMPLETED
                       </span>
                     ) : scannedData.prescription.dispenseState === 'PARTIALLY_DISPENSED' ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
@@ -232,7 +260,7 @@ export default function PharmacyPortal() {
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        PENDING DISPENSE (ORIGINAL FILL)
+                        VALID FOR DISPENSE (ORIGINAL FILL)
                       </span>
                     )}
                   </div>
@@ -241,12 +269,12 @@ export default function PharmacyPortal() {
                 {/* Patient Verification (Scoped Demographics) */}
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div>
-                    <div className="text-[10px] uppercase font-bold text-slate-400">Patient Name</div>
-                    <div className="font-bold text-slate-900 truncate">{scannedData.patient.fullName}</div>
+                    <div className="text-[10px] uppercase font-bold text-slate-400">Patient Full Name</div>
+                    <div className="text-sm font-bold text-slate-900 truncate">{scannedData.patient.fullName}</div>
                   </div>
                   <div>
                     <div className="text-[10px] uppercase font-bold text-slate-400">Health ID</div>
-                    <div className="font-mono text-emerald-700 font-semibold">{scannedData.patient.healthId}</div>
+                    <div className="font-mono text-emerald-700 font-bold">{scannedData.patient.healthId}</div>
                   </div>
                   <div>
                     <div className="text-[10px] uppercase font-bold text-slate-400">Date of Birth</div>
@@ -258,34 +286,34 @@ export default function PharmacyPortal() {
                   </div>
                 </div>
 
-                {/* Medication Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Medication Details (Large POS Display) */}
+                <div className="p-5 rounded-2xl bg-sky-50/50 border border-sky-100 space-y-3">
                   <div className="space-y-1">
-                    <div className="text-[10px] uppercase font-bold text-slate-400">Medication Prescribed</div>
-                    <div className="text-base font-bold text-slate-900">{scannedData.prescription.medicationName}</div>
-                    <div className="text-xs text-slate-600">{scannedData.prescription.dosageInstruction}</div>
+                    <div className="text-[11px] uppercase font-bold tracking-wider text-sky-800">Prescribed Drug</div>
+                    <div className="text-2xl font-black text-slate-900">{scannedData.prescription.medicationName}</div>
+                    <div className="text-sm font-medium text-slate-700">{scannedData.prescription.dosageInstruction}</div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-center">
-                      <div className="text-[10px] uppercase font-bold text-slate-400">Quantity</div>
-                      <div className="text-sm font-bold text-slate-800">{scannedData.prescription.quantity}</div>
+                  <div className="grid grid-cols-3 gap-3 pt-2">
+                    <div className="p-3 rounded-xl bg-white border border-sky-200/60 text-center shadow-sm">
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Authorized Units</div>
+                      <div className="text-xl font-black text-slate-900">{scannedData.prescription.quantity}</div>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                    <div className="p-3 rounded-xl bg-white border border-sky-200/60 text-center shadow-sm">
                       <div className="text-[10px] uppercase font-bold text-slate-400">Days Supply</div>
-                      <div className="text-sm font-bold text-slate-800">{scannedData.prescription.daysSupply}</div>
+                      <div className="text-xl font-black text-slate-900">{scannedData.prescription.daysSupply} d</div>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-center">
-                      <div className="text-[10px] uppercase font-bold text-slate-400">Repeats Left</div>
-                      <div className="text-sm font-bold text-slate-800">{scannedData.prescription.repeatsRemaining}</div>
+                    <div className="p-3 rounded-xl bg-white border border-sky-200/60 text-center shadow-sm">
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Refills Left</div>
+                      <div className="text-xl font-black text-slate-900">{scannedData.prescription.repeatsRemaining}</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Prescriber info */}
                 <div className="text-xs text-slate-500 pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <div>Prescribed by: <span className="font-semibold text-slate-700">{scannedData.prescriber.doctorName}</span></div>
-                  <div>Facility: <span className="font-semibold text-slate-700">{scannedData.prescriber.facilityName}</span></div>
+                  <div>Prescribed by: <strong className="text-slate-700">{scannedData.prescriber.doctorName}</strong></div>
+                  <div>Facility: <strong className="text-slate-700">{scannedData.prescriber.facilityName}</strong></div>
                 </div>
               </div>
 
@@ -294,18 +322,18 @@ export default function PharmacyPortal() {
                 <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                     <PackageCheck className="w-5 h-5 text-sky-600" />
-                    <span>Dispense Order</span>
+                    <span>POS Counter Dispense Action</span>
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Quantity Dispensed</label>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Quantity to Dispense</label>
                       <input
                         type="number"
                         min={1}
                         value={quantityToDispense}
                         onChange={(e) => setQuantityToDispense(e.target.value)}
-                        className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        className="w-full text-base font-bold p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
                       />
                     </div>
                     <div>
@@ -315,42 +343,42 @@ export default function PharmacyPortal() {
                         min={1}
                         value={daysSupply}
                         onChange={(e) => setDaysSupply(e.target.value)}
-                        className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        className="w-full text-base font-bold p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Pharmacist Notes</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Pharmacist Dispensing Notes</label>
                     <input
                       type="text"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
                     />
                   </div>
 
                   <button
                     onClick={handleDispense}
                     disabled={loading}
-                    className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-md shadow-sky-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                    className="w-full py-3.5 px-4 rounded-xl text-sm font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-lg shadow-sky-600/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                   >
-                    <PackageCheck className="w-4 h-4" />
-                    <span>Confirm & Record Dispense (HL7 FHIR)</span>
+                    <PackageCheck className="w-5 h-5" />
+                    <span>Record Dispense & Stamp Prescription</span>
                   </button>
                 </div>
               ) : (
-                <div className="p-6 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 text-white shadow-lg flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
-                      <AlertOctagon className="w-7 h-7 text-white" />
+                <div className="p-6 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 text-white shadow-xl flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center flex-shrink-0">
+                      <AlertOctagon className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                      <div className="inline-block px-2.5 py-0.5 rounded-full bg-white text-red-700 text-[10px] font-black uppercase tracking-wider mb-1">
-                        ISSUED / DISPENSED
+                      <div className="inline-block px-3 py-0.5 rounded-full bg-white text-red-700 text-[10px] font-black uppercase tracking-wider mb-1">
+                        RE-USE PROHIBITED
                       </div>
-                      <h4 className="font-bold text-base leading-tight">Prescription Already Issued</h4>
-                      <p className="text-xs text-red-100 mt-1">
+                      <h4 className="font-bold text-lg leading-tight">Prescription Already Issued</h4>
+                      <p className="text-xs text-red-100 mt-1 max-w-lg">
                         All authorized repeats have been dispensed. Re-dispensing of this QR token is cryptographically blocked across all nationwide pharmacies.
                       </p>
                     </div>
@@ -361,10 +389,10 @@ export default function PharmacyPortal() {
               {/* Dispense History for this prescription */}
               {scannedData.dispenseHistory?.length > 0 && (
                 <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Dispense History</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Dispense Audit Trail</h3>
                   <div className="space-y-2">
                     {scannedData.dispenseHistory.map((d) => (
-                      <div key={d.id} className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
+                      <div key={d.id} className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
                         <div>
                           <div className="font-bold text-slate-800">{d.pharmacyName}</div>
                           <div className="text-[11px] text-slate-500">Dispensed by: {d.pharmacistName} &bull; {d.notes}</div>
@@ -380,11 +408,11 @@ export default function PharmacyPortal() {
               )}
             </div>
           ) : (
-            <div className="p-12 rounded-2xl bg-white border border-slate-200 text-center space-y-3 text-slate-400">
-              <QrCode className="w-12 h-12 mx-auto text-slate-300" />
-              <div className="text-sm font-semibold text-slate-600">No Prescription Loaded</div>
-              <p className="text-xs max-w-sm mx-auto">
-                Enter a prescription code from a patient QR above to retrieve the scoped dispensing payload.
+            <div className="p-16 rounded-2xl bg-white border-2 border-dashed border-slate-200 text-center space-y-3 text-slate-400">
+              <Barcode className="w-16 h-16 mx-auto text-slate-300" />
+              <div className="text-base font-bold text-slate-700">POS Counter Ready</div>
+              <p className="text-xs max-w-md mx-auto text-slate-500">
+                Scan patient QR code or type prescription token on the left to verify authenticity and dispense medications.
               </p>
             </div>
           )}

@@ -42,6 +42,13 @@ import {
   getLabOrderById,
   completeLabOrder,
 } from '../records/lab-order-service.js';
+import {
+  registerPatient,
+  registerDoctor,
+  registerPharmacy,
+  registerLab,
+  listPublicFacilities,
+} from '../auth/registration-service.js';
 
 const api = secureRouter();
 
@@ -50,6 +57,49 @@ const LoginBody = z.object({
   password: z.string().min(1).max(200),
   membershipId: z.uuid().optional(),
   asPatient: z.boolean().optional(),
+});
+
+const RegisterPatientBody = z.object({
+  username: z.string().trim().min(3).max(50),
+  password: z.string().min(8).max(200),
+  givenName: z.string().trim().max(100).optional(),
+  familyName: z.string().trim().min(1).max(100),
+  fullName: z.string().trim().max(200).optional(),
+  dateOfBirth: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+  sex: z.enum(['male', 'female', 'other', 'unknown']),
+  nic: z.string().trim().min(9).max(30).optional(),
+});
+
+const RegisterDoctorBody = z.object({
+  username: z.string().trim().min(3).max(50),
+  password: z.string().min(8).max(200),
+  fullName: z.string().trim().min(2).max(150),
+  slmcNumber: z.string().trim().min(3).max(50),
+  specialization: z.string().trim().min(2).max(100).optional(),
+  facilityId: z.string().uuid(),
+  jobTitle: z.string().trim().max(100).optional(),
+});
+
+const RegisterPharmacyBody = z.object({
+  pharmacyName: z.string().trim().min(2).max(150),
+  pharmacyCode: z.string().trim().min(2).max(50),
+  nmraLicense: z.string().trim().min(3).max(50),
+  username: z.string().trim().min(3).max(50),
+  password: z.string().min(8).max(200),
+  fullName: z.string().trim().min(2).max(150),
+  jobTitle: z.string().trim().max(100).optional(),
+  publicKeyPem: z.string().trim().optional(),
+});
+
+const RegisterLabBody = z.object({
+  labName: z.string().trim().min(2).max(150),
+  labCode: z.string().trim().min(2).max(50),
+  phsrcRegNo: z.string().trim().min(3).max(50),
+  username: z.string().trim().min(3).max(50),
+  password: z.string().min(8).max(200),
+  fullName: z.string().trim().min(2).max(150),
+  jobTitle: z.string().trim().max(100).optional(),
+  publicKeyPem: z.string().trim().optional(),
 });
 
 const ReasonBody = z.object({ reason: z.string().trim().min(3).max(500) });
@@ -149,6 +199,38 @@ async function findPatient(healthId) {
 
 api.post('/auth/login', 'auth.login', async (req, res) => {
   res.json(await login(parseBody(LoginBody, req.body)));
+});
+
+// ---------- Phase 8: Multi-Tenant Onboarding & Registration (PUBLIC) ----------
+
+api.post('/auth/register/patient', 'auth.register_patient', async (req, res) => {
+  const body = parseBody(RegisterPatientBody, req.body);
+  const result = await registerPatient(body);
+  res.status(201).json(result);
+});
+
+api.post('/auth/register/doctor', 'auth.register_doctor', async (req, res) => {
+  const body = parseBody(RegisterDoctorBody, req.body);
+  const result = await registerDoctor(body);
+  res.status(201).json(result);
+});
+
+api.post('/auth/register/pharmacy', 'auth.register_pharmacy', async (req, res) => {
+  const body = parseBody(RegisterPharmacyBody, req.body);
+  const result = await registerPharmacy(body);
+  res.status(201).json(result);
+});
+
+api.post('/auth/register/lab', 'auth.register_lab', async (req, res) => {
+  const body = parseBody(RegisterLabBody, req.body);
+  const result = await registerLab(body);
+  res.status(201).json(result);
+});
+
+api.get('/facilities', 'facility.list_public', async (req, res) => {
+  const type = typeof req.query.type === 'string' ? req.query.type.toUpperCase() : undefined;
+  const result = await listPublicFacilities({ type });
+  res.json(result);
 });
 
 api.get('/me', 'session.view_self', (req, res) => {

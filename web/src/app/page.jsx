@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Stethoscope, Pill, FlaskConical, User, ShieldCheck, HeartPulse, ArrowRight, Lock, Key, AlertTriangle } from 'lucide-react';
+import { Stethoscope, Pill, FlaskConical, User, ShieldCheck, HeartPulse, ArrowRight, Lock, Key, AlertTriangle, UserPlus, Building2 } from 'lucide-react';
 import { DEMO_USERS, DEMO_PATIENTS } from '../lib/demo-data';
 import { login, setSession } from '../lib/api';
 
@@ -154,6 +154,27 @@ export default function HomePage() {
             );
           })}
         </div>
+      </div>
+
+      {/* Multi-Tenant Registration & Onboarding Banner */}
+      <div className="p-8 rounded-3xl bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white shadow-xl border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold">
+            <UserPlus className="w-4 h-4" />
+            <span>Multi-Tenant Role Onboarding</span>
+          </div>
+          <h3 className="text-xl sm:text-2xl font-bold tracking-tight">Register Your Account or Healthcare Facility</h3>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
+            Self-service onboarding for Citizens (with Luhn Health ID generation), Doctors (SLMC credentials), Pharmacies (NMRA license), and Diagnostic Labs (PHSRC accreditation).
+          </p>
+        </div>
+        <Link
+          href="/register"
+          className="flex-shrink-0 px-6 py-3 rounded-xl bg-white text-emerald-950 hover:bg-emerald-50 font-bold text-xs shadow-lg transition-all flex items-center gap-2"
+        >
+          <span>Open Registration Hub</span>
+          <ArrowRight className="w-4 h-4" />
+        </Link>
       </div>
 
       {/* Seed Citizen Quick Reference */}

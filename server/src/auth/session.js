@@ -18,7 +18,14 @@ export function actorForMembership(user, membership) {
     membershipId: membership.id,
     facilityId: membership.facilityId,
     facilityType: membership.facility.type,
+    facilityName: membership.facility.name,
+    facilityCode: membership.facility.code,
+    licenseNumber: membership.facility.licenseNumber ?? null,
     role: membership.role,
+    jobTitle: title,
+    fullName: user.fullName,
+    slmcNumber: user.slmcNumber ?? null,
+    specialization: user.specialization ?? null,
     label: `${membership.facility.name}, ${title} ${user.fullName}`,
   };
 }
@@ -32,6 +39,7 @@ export function actorForPatient(user) {
     facilityId: null,
     role: PATIENT,
     ownPatientId: user.patientId,
+    fullName: user.fullName,
     label: `Patient ${user.fullName}`,
   };
 }
@@ -41,7 +49,14 @@ const invalidToken = () => new AppError('INVALID_TOKEN', 'Invalid session token'
 export async function loadSession({ userId, membershipId }) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, fullName: true, status: true, patientId: true },
+    select: {
+      id: true,
+      fullName: true,
+      status: true,
+      patientId: true,
+      slmcNumber: true,
+      specialization: true,
+    },
   });
   if (!user) throw invalidToken();
   if (user.status !== 'ACTIVE') throw new AppError('ACCOUNT_BLOCKED', 'This account is blocked');
@@ -64,5 +79,20 @@ export async function loadSession({ userId, membershipId }) {
 
 // What the API may show about the current session. No hashes, no secrets.
 export function publicSession(actor) {
-  return { userId: actor.userId, membershipId: actor.membershipId, role: actor.role, label: actor.label };
+  return {
+    userId: actor.userId,
+    membershipId: actor.membershipId,
+    role: actor.role,
+    label: actor.label,
+    facilityId: actor.facilityId ?? null,
+    facilityName: actor.facilityName ?? null,
+    facilityCode: actor.facilityCode ?? null,
+    facilityType: actor.facilityType ?? null,
+    licenseNumber: actor.licenseNumber ?? null,
+    jobTitle: actor.jobTitle ?? null,
+    fullName: actor.fullName ?? null,
+    slmcNumber: actor.slmcNumber ?? null,
+    specialization: actor.specialization ?? null,
+    ownPatientId: actor.ownPatientId ?? null,
+  };
 }

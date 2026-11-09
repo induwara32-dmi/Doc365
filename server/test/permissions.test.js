@@ -69,10 +69,17 @@ test('the matrix only uses known roles and known rule values', () => {
       assert.ok(values.has(value), `${permission}: unknown rule ${value}`);
     }
   }
-  // Only logging in is public
+  // Public auth and onboarding endpoints
   assert.deepEqual(
     Object.entries(PERMISSIONS).filter(([, r]) => r === PUBLIC).map(([p]) => p),
-    ['auth.login'],
+    [
+      'auth.login',
+      'auth.register_patient',
+      'auth.register_doctor',
+      'auth.register_pharmacy',
+      'auth.register_lab',
+      'facility.list_public',
+    ],
   );
 });
 

@@ -78,6 +78,56 @@ export async function login({ username, password, membershipId, asPatient }) {
   return res;
 }
 
+// Onboarding & Registration APIs (Phase 8)
+export async function registerPatient(patientData) {
+  const res = await apiRequest('/auth/register/patient', {
+    method: 'POST',
+    body: patientData,
+  });
+  if (res.ok && res.data?.token) {
+    setSession(res.data.token, res.data.session);
+  }
+  return res;
+}
+
+export async function registerDoctor(doctorData) {
+  const res = await apiRequest('/auth/register/doctor', {
+    method: 'POST',
+    body: doctorData,
+  });
+  if (res.ok && res.data?.token) {
+    setSession(res.data.token, res.data.session);
+  }
+  return res;
+}
+
+export async function registerPharmacy(pharmacyData) {
+  const res = await apiRequest('/auth/register/pharmacy', {
+    method: 'POST',
+    body: pharmacyData,
+  });
+  if (res.ok && res.data?.token) {
+    setSession(res.data.token, res.data.session);
+  }
+  return res;
+}
+
+export async function registerLab(labData) {
+  const res = await apiRequest('/auth/register/lab', {
+    method: 'POST',
+    body: labData,
+  });
+  if (res.ok && res.data?.token) {
+    setSession(res.data.token, res.data.session);
+  }
+  return res;
+}
+
+export async function getPublicFacilities(type = null) {
+  const query = type ? `?type=${encodeURIComponent(type)}` : '';
+  return apiRequest(`/facilities${query}`);
+}
+
 // Doctor & Clinical API
 export async function scanCard({ healthId, cardSerial }) {
   return apiRequest('/access/scan', {

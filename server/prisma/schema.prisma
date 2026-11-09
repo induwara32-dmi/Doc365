@@ -151,8 +151,10 @@ model Facility {
   // key never enters the database (keys/ folder, gitignored). An AUTHORITY signs
   // no records, so it may have none; every other type must have one
   // (hand-written CHECK "Facility_key_required" in the migration SQL).
-  publicKeyPem String?
-  createdAt    DateTime     @default(now())
+  publicKeyPem  String?
+  // Phase 8: Regulatory facility license (NMRA / PHSRC / MoH)
+  licenseNumber String?
+  createdAt     DateTime     @default(now())
 
   memberships   StaffMembership[]
   auditLogs     AuditLog[]
@@ -184,6 +186,9 @@ model User {
   passwordHash String
   status       UserStatus @default(ACTIVE)
   fullName     String
+  // Phase 8: Doctor professional credentials & multi-tenant isolation
+  slmcNumber     String?    @unique
+  specialization String?
   // The person's own patient record, if they have one (a doctor can also be a patient)
   patientId    String?    @unique @db.Uuid
   patient      Patient?   @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)

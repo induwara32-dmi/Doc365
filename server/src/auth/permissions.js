@@ -31,6 +31,11 @@ export const PATIENT = 'PATIENT';
 
 export const PERMISSIONS = {
   'auth.login': PUBLIC,
+  'auth.register_patient': PUBLIC,
+  'auth.register_doctor': PUBLIC,
+  'auth.register_pharmacy': PUBLIC,
+  'auth.register_lab': PUBLIC,
+  'facility.list_public': PUBLIC,
 
   'session.view_self': {
     DOCTOR: ALWAYS,
