@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   FlaskConical,
-  CreditCard,
   CheckCircle2,
   AlertTriangle,
   Clock,
@@ -16,6 +15,11 @@ import {
   User,
   Building2,
   Lock,
+  ChevronDown,
+  Radio,
+  Activity,
+  FileText,
+  Zap,
 } from 'lucide-react';
 import {
   getCurrentUser,
@@ -27,16 +31,40 @@ import {
 } from '../../lib/api';
 import { DEMO_PATIENTS, DEMO_LAB_TESTS } from '../../lib/demo-data';
 
+function calculateAge(dobString) {
+  if (!dobString) return '';
+  const dob = new Date(dobString);
+  if (isNaN(dob.getTime())) return '';
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return `${age} yrs`;
+}
+
+const PRESET_CARDS = [
+  { label: 'Kumari Jayasinghe', patient: DEMO_PATIENTS[0], serial: 'CARD-100001-1' },
+  { label: 'Baby Jayasinghe', patient: DEMO_PATIENTS[1], serial: 'CARD-100002-1' },
+  { label: 'Sanduni Perera', patient: DEMO_PATIENTS[2], serial: 'CARD-100003-1' },
+];
+
 export default function LabPortal() {
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedPatient, setSelectedPatient] = useState(DEMO_PATIENTS[0]);
   const [patientHealthId, setPatientHealthId] = useState(DEMO_PATIENTS[0].healthId);
 
+  // Scanner bar state & shortcut ref
+  const scannerInputRef = useRef(null);
+  const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
+  const presetDropdownRef = useRef(null);
+
   // Lab Orders state
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
-  const [worklistTab, setWorklistTab] = useState('PENDING'); // 'PENDING' | 'COMPLETED' | 'ALL'
+  const [worklistTab, setWorklistTab] = useState('PENDING'); // 'PENDING' | 'COMPLETED'
 
   // Result Entry Pad state
   const [activeOrder, setActiveOrder] = useState(null);
@@ -63,6 +91,29 @@ export default function LabPortal() {
     initMlt();
   }, []);
 
+  // Global Ctrl+K / Cmd+K shortcut to focus card scanner
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        scannerInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Close preset dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (presetDropdownRef.current && !presetDropdownRef.current.contains(event.target)) {
+        setIsPresetDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Fetch orders whenever selected patient changes
   useEffect(() => {
     if (patientHealthId) {
@@ -78,7 +129,7 @@ export default function LabPortal() {
 
     if (res.ok) {
       setOrders(res.data.orders || []);
-      const pending = res.data.orders?.find((o) => o.status === 'ORDERED');
+      const pending = res.data.orders?.find((o) => o.status === 'ORDERED' || o.status === 'IN_PROGRESS');
       if (pending) {
         selectOrderForResultEntry(pending);
       } else {
@@ -90,9 +141,42 @@ export default function LabPortal() {
     }
   };
 
-  const handlePatientSelect = (patient) => {
-    setSelectedPatient(patient);
-    setPatientHealthId(patient.healthId);
+  const handleScannerSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (!patientHealthId.trim()) return;
+
+    const query = patientHealthId.trim().toUpperCase();
+    const matched =
+      DEMO_PATIENTS.find(
+        (p) =>
+          p.healthId.toUpperCase() === query ||
+          (p.shortName && p.shortName.toUpperCase().includes(query)) ||
+          (p.name && p.name.toUpperCase().includes(query)) ||
+          (p.nic && p.nic.toUpperCase() === query)
+      ) || PRESET_CARDS.find((pc) => pc.serial.toUpperCase() === query)?.patient;
+
+    if (matched) {
+      setSelectedPatient(matched);
+      setPatientHealthId(matched.healthId);
+      loadLabOrders(matched.healthId);
+    } else {
+      const customPatient = {
+        healthId: query,
+        name: `Patient ${query}`,
+        shortName: query,
+        sex: 'unknown',
+        dateOfBirth: null,
+      };
+      setSelectedPatient(customPatient);
+      loadLabOrders(query);
+    }
+  };
+
+  const handleSelectPreset = (preset) => {
+    setSelectedPatient(preset.patient);
+    setPatientHealthId(preset.patient.healthId);
+    setIsPresetDropdownOpen(false);
+    loadLabOrders(preset.patient.healthId);
   };
 
   const selectOrderForResultEntry = (order) => {
@@ -107,38 +191,40 @@ export default function LabPortal() {
       setObservationUnit('units');
       setReferenceRange('Reference range on file');
     }
-    setTechnicianNotes(`Analysis verified at ${currentUser?.facilityName || 'Demo Lab Colombo'}. Specimen collected in appropriate container.`);
+    setTechnicianNotes(
+      `Analysis verified at ${currentUser?.facilityName || 'Demo Lab Colombo'}. Specimen collected in appropriate container.`
+    );
   };
 
-  // Calculate reference range evaluation trigger
+  // Automated reference range evaluation
   const evaluateObservation = () => {
     const val = parseFloat(observationValue);
     if (isNaN(val) || !activeOrder) return null;
 
     const code = activeOrder.testCode;
     if (code === '1558-6') {
-      // Glucose
-      if (val < 70) return { status: 'LOW', label: 'Hypoglycemia Alert', color: 'bg-blue-100 text-blue-800 border-blue-300' };
-      if (val <= 99) return { status: 'NORMAL', label: 'Normal Fasting Range', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
-      if (val <= 125) return { status: 'ELEVATED', label: 'Impaired / Pre-diabetic Range', color: 'bg-amber-100 text-amber-800 border-amber-300' };
-      return { status: 'HIGH', label: 'Hyperglycemia / Diabetic Range (Trigger Alert)', color: 'bg-red-100 text-red-900 border-red-300 font-bold' };
+      // Fasting Blood Glucose
+      if (val < 70) return { status: 'LOW', label: 'Hypoglycemia Alert (<70 mg/dL)', color: 'bg-blue-950/50 text-blue-300 border-blue-500/40' };
+      if (val <= 99) return { status: 'NORMAL', label: 'Normal Fasting Range (70-99 mg/dL)', color: 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' };
+      if (val <= 125) return { status: 'ELEVATED', label: 'Impaired / Pre-diabetic Range (100-125 mg/dL)', color: 'bg-amber-950/50 text-amber-300 border-amber-500/40' };
+      return { status: 'HIGH', label: 'Hyperglycemia / Diabetic Range (≥126 mg/dL)', color: 'bg-rose-950/60 text-rose-300 border-rose-500/50 font-bold' };
     } else if (code === '4548-4') {
       // HbA1c
-      if (val < 5.7) return { status: 'NORMAL', label: 'Optimal (<5.7%)', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
-      if (val <= 6.4) return { status: 'ELEVATED', label: 'Pre-diabetes Range (5.7 - 6.4%)', color: 'bg-amber-100 text-amber-800 border-amber-300' };
-      return { status: 'HIGH', label: 'Elevated HbA1c (≥6.5%)', color: 'bg-red-100 text-red-900 border-red-300 font-bold' };
+      if (val < 5.7) return { status: 'NORMAL', label: 'Optimal (<5.7%)', color: 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' };
+      if (val <= 6.4) return { status: 'ELEVATED', label: 'Pre-diabetes Range (5.7 - 6.4%)', color: 'bg-amber-950/50 text-amber-300 border-amber-500/40' };
+      return { status: 'HIGH', label: 'Elevated HbA1c (≥6.5%)', color: 'bg-rose-950/60 text-rose-300 border-rose-500/50 font-bold' };
     } else if (code === '2093-3') {
-      // Cholesterol
-      if (val < 200) return { status: 'NORMAL', label: 'Desirable (<200 mg/dL)', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
-      if (val <= 239) return { status: 'ELEVATED', label: 'Borderline High (200 - 239 mg/dL)', color: 'bg-amber-100 text-amber-800 border-amber-300' };
-      return { status: 'HIGH', label: 'High Cholesterol (≥240 mg/dL)', color: 'bg-red-100 text-red-900 border-red-300 font-bold' };
+      // Total Cholesterol
+      if (val < 200) return { status: 'NORMAL', label: 'Desirable (<200 mg/dL)', color: 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' };
+      if (val <= 239) return { status: 'ELEVATED', label: 'Borderline High (200 - 239 mg/dL)', color: 'bg-amber-950/50 text-amber-300 border-amber-500/40' };
+      return { status: 'HIGH', label: 'High Cholesterol (≥240 mg/dL)', color: 'bg-rose-950/60 text-rose-300 border-rose-500/50 font-bold' };
     } else if (code === '2160-0') {
       // Creatinine
-      if (val <= 1.3) return { status: 'NORMAL', label: 'Normal Renal Function (0.7 - 1.3 mg/dL)', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
-      return { status: 'HIGH', label: 'Elevated Serum Creatinine (Renal Stress)', color: 'bg-red-100 text-red-900 border-red-300 font-bold' };
+      if (val <= 1.3) return { status: 'NORMAL', label: 'Normal Renal Function (0.7 - 1.3 mg/dL)', color: 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' };
+      return { status: 'HIGH', label: 'Elevated Serum Creatinine (Renal Stress)', color: 'bg-rose-950/60 text-rose-300 border-rose-500/50 font-bold' };
     }
 
-    return { status: 'NORMAL', label: 'Within Reference Range', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+    return { status: 'NORMAL', label: 'Within Reference Range', color: 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' };
   };
 
   const evalResult = evaluateObservation();
@@ -281,246 +367,394 @@ export default function LabPortal() {
   const completedOrders = orders.filter((o) => o.status === 'COMPLETED');
 
   return (
-    <div className="space-y-8">
-      {/* Session Header with Dynamic MLT & PHSRC Credentials */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-600 to-yellow-500 text-white flex items-center justify-center font-bold shadow-md shadow-amber-500/20">
-            <FlaskConical className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg font-bold text-slate-900">Laboratory Diagnostic Worklist & Fulfillment</h1>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                Diagnostic Facility
-              </span>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                PHSRC #{currentUser?.licenseNumber || 'PHSRC-LAB-2024-9120'}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-2">
-              <span>{currentUser?.facilityName || 'National Diagnostic Laboratory'}</span>
-              <span>&bull;</span>
-              <span>MLT: <strong className="text-slate-800">{currentUser?.fullName || currentUser?.label || 'A. Silva'}</strong></span>
-            </p>
-          </div>
-        </div>
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* 1. Header-Integrated Laboratory Command & ID Scanner Bar */}
+      <div className="rounded-3xl bg-slate-950 border border-slate-800 text-white p-5 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 -mb-16 w-72 h-72 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
 
-        <div className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 self-start sm:self-center">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Ed25519 Cryptographic Signer Active</span>
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5 relative z-10">
+          {/* Diagnostic Facility & MLT Credentials */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-emerald-600 to-teal-500 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-500/20">
+              <FlaskConical className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg font-bold tracking-tight text-white">
+                  Laboratory Diagnostic Worklist & Fulfillment
+                </h1>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                  Diagnostic Facility
+                </span>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
+                  PHSRC #{currentUser?.licenseNumber || 'PHSRC-LAB-2024-9120'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-medium mt-0.5 flex items-center gap-2">
+                <span>{currentUser?.facilityName || 'National Diagnostic Laboratory'}</span>
+                <span>&bull;</span>
+                <span>
+                  MLT: <strong className="text-slate-200">{currentUser?.fullName || currentUser?.label || 'A. Silva'}</strong>
+                </span>
+              </p>
+            </div>
+          </div>
+
+          {/* Integrated Sleek Health ID Scanner Bar */}
+          <div className="flex items-center gap-3 flex-1 max-w-xl">
+            <form onSubmit={handleScannerSubmit} className="relative flex-1">
+              <div className="relative flex items-center">
+                <div className="absolute left-3.5 flex items-center pointer-events-none text-emerald-400">
+                  <Radio className="w-4 h-4 animate-pulse" />
+                </div>
+
+                <input
+                  ref={scannerInputRef}
+                  type="text"
+                  value={patientHealthId}
+                  onChange={(e) => setPatientHealthId(e.target.value)}
+                  placeholder="Scan Health Card or enter Health ID..."
+                  className="w-full text-xs font-mono pl-10 pr-24 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-700 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 text-white placeholder-slate-500 transition-all shadow-inner uppercase"
+                />
+
+                <div className="absolute right-2 flex items-center gap-1.5">
+                  <span className="hidden sm:inline-block text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                    Ctrl K
+                  </span>
+                  <button
+                    type="submit"
+                    disabled={loading || !patientHealthId.trim()}
+                    className="px-3 py-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-emerald-500/20 disabled:opacity-40"
+                  >
+                    Scan ID
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {/* Discreet Demo Preset Selector */}
+            <div className="relative" ref={presetDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsPresetDropdownOpen(!isPresetDropdownOpen)}
+                className="px-3 py-2.5 rounded-2xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-xs text-slate-300 font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap"
+              >
+                <span>Demo Patients</span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              </button>
+
+              {isPresetDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-2 z-50 text-xs">
+                  <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800">
+                    Quick Simulated Citizens
+                  </div>
+                  <div className="py-1 space-y-1">
+                    {PRESET_CARDS.map((p) => (
+                      <button
+                        key={p.patient.healthId}
+                        type="button"
+                        onClick={() => handleSelectPreset(p)}
+                        className={`w-full text-left px-3 py-2 rounded-xl transition-colors flex items-center justify-between ${
+                          selectedPatient.healthId === p.patient.healthId
+                            ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-bold">{p.label}</div>
+                          <div className="text-[10px] font-mono text-emerald-400">{p.serial}</div>
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-500">{p.patient.healthId}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cryptographic Facility Indicator */}
+            <div className="hidden lg:flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-2xl bg-slate-900/90 border border-emerald-500/30 text-emerald-300 whitespace-nowrap">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span className="text-[11px]">Ed25519 Ready</span>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Status Notifications */}
       {statusMessage && (
         <div
-          className={`p-4 rounded-xl text-xs flex items-center gap-2.5 font-medium border ${
+          className={`p-4 rounded-2xl text-xs flex items-center gap-2.5 font-medium border ${
             statusMessage.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-              : 'bg-red-50 border-red-200 text-red-900'
+              ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-200'
+              : 'bg-red-950/40 border-red-500/30 text-red-200'
           }`}
         >
           {statusMessage.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           ) : (
-            <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 text-red-400" />
           )}
           <span>{statusMessage.text}</span>
         </div>
       )}
 
-      {/* Main Layout Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Health Card Tap & Patient Lookup */}
-        <div className="space-y-6">
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-amber-600" />
-              <span>Patient Identification & Health Card</span>
-            </h2>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                Quick Patient Presets
-              </label>
-              <div className="space-y-2">
-                {DEMO_PATIENTS.map((p) => {
-                  const isSelected = selectedPatient.healthId === p.healthId;
-                  return (
-                    <button
-                      key={p.healthId}
-                      type="button"
-                      onClick={() => handlePatientSelect(p)}
-                      className={`w-full p-3 rounded-xl border text-left text-xs transition-all flex items-center justify-between ${
-                        isSelected
-                          ? 'border-amber-500 bg-amber-50/60 font-bold text-amber-950'
-                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <div>
-                        <div className="font-bold">{p.shortName || p.name}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{p.healthId}</div>
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-slate-400" />
-                    </button>
-                  );
-                })}
-              </div>
+      {/* 2. Patient Context Banner (Compact Glassmorphic Bar) */}
+      <div className="rounded-3xl bg-slate-900/90 backdrop-blur-md border border-slate-800 text-white p-5 shadow-2xl relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-amber-500 text-white flex items-center justify-center font-black text-base shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/30 flex-shrink-0">
+              {selectedPatient.shortName
+                ?.split(' ')
+                .map((n) => n[0])
+                .join('')
+                .slice(0, 2) || 'PT'}
             </div>
 
-            <div className="pt-2">
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Scan / Enter Health ID
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={patientHealthId}
-                  onChange={(e) => setPatientHealthId(e.target.value)}
-                  placeholder="DEMO-XXXXXX-X"
-                  className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 uppercase"
-                />
-                <button
-                  type="button"
-                  onClick={() => loadLabOrders(patientHealthId)}
-                  disabled={loading || !patientHealthId.trim()}
-                  className="px-3.5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 disabled:opacity-50"
-                >
-                  <Search className="w-4 h-4" />
-                </button>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h2 className="text-lg font-bold tracking-tight text-white">
+                  {selectedPatient.name || selectedPatient.shortName}
+                </h2>
+                <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-slate-950 border border-emerald-500/30 text-emerald-300">
+                  {selectedPatient.healthId}
+                </span>
+                {selectedPatient.nic && (
+                  <span className="text-[10px] font-mono text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded border border-slate-700">
+                    NIC: {selectedPatient.nic}
+                  </span>
+                )}
+              </div>
+
+              <div className="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
+                {selectedPatient.dateOfBirth && (
+                  <>
+                    <span>{calculateAge(selectedPatient.dateOfBirth)}</span>
+                    <span>&bull;</span>
+                  </>
+                )}
+                <span className="capitalize">{selectedPatient.sex || 'Unknown'}</span>
+                <span>&bull;</span>
+                <span className="text-emerald-400 font-medium flex items-center gap-1">
+                  <Activity className="w-3 h-3" />
+                  Specimen Accession Ready
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Facility Signing Information Card */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-md space-y-3 text-xs">
-            <div className="flex items-center gap-2 text-amber-400 font-bold uppercase tracking-wider text-[11px]">
-              <Lock className="w-4 h-4" />
-              <span>Client-Side Facility Signing</span>
+          <div className="flex items-center gap-3">
+            <div className="px-3.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs flex items-center gap-2 text-slate-300">
+              <Clock className="w-4 h-4 text-amber-400" />
+              <span>
+                Pending Tests: <strong className="text-amber-300 font-mono font-bold">{pendingOrders.length}</strong>
+              </span>
             </div>
-            <p className="text-slate-300 leading-relaxed text-[11px]">
-              Per DESIGN.md Section 4: Demo Lab Colombo signs the HL7 FHIR bundle locally with its private Ed25519 key.
-              The server verifies the signature against the database public key, creating an immutable verified record.
-            </p>
           </div>
         </div>
+      </div>
 
-        {/* Center & Right Column: Pending Orders & Result Entry */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Pending Orders Section */}
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-amber-600" />
-                  <span>Pending Lab Test Orders</span>
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Tests requested by doctors for {selectedPatient.shortName || selectedPatient.name}
-                </p>
+      {/* 3. Balanced Diagnostic Workspace */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column (5 cols): Pending Lab Test Orders Worklist & Completed History */}
+        <div className="lg:col-span-5 space-y-6">
+          <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 shadow-2xl space-y-4">
+            {/* Worklist Tab Switcher */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setWorklistTab('PENDING')}
+                  className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                    worklistTab === 'PENDING'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Pending ({pendingOrders.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setWorklistTab('COMPLETED')}
+                  className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                    worklistTab === 'COMPLETED'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Fulfilled ({completedOrders.length})</span>
+                </button>
               </div>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
-                {pendingOrders.length} Pending
+
+              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+                Worklist
               </span>
             </div>
 
-            {pendingOrders.length === 0 ? (
-              <div className="text-center py-8 text-xs text-slate-400 space-y-2">
-                <CheckCircle2 className="w-8 h-8 text-slate-300 mx-auto" />
-                <div>No pending orders for this patient.</div>
-                <p className="text-[11px] text-slate-500">
-                  Issue an investigation from the Doctor Portal (/doctor) to test fulfillment here.
-                </p>
-              </div>
-            ) : (
+            {/* Pending Orders Tab */}
+            {worklistTab === 'PENDING' && (
               <div className="space-y-3">
-                {pendingOrders.map((order) => {
-                  const isSelected = activeOrder?.id === order.id;
-                  const isUrgent = order.priority === 'URGENT' || order.priority === 'STAT';
+                {pendingOrders.length === 0 ? (
+                  <div className="text-center py-10 text-xs text-slate-500 space-y-2">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500/40 mx-auto" />
+                    <div className="text-slate-300 font-semibold">No pending orders for this patient.</div>
+                    <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                      Issue an investigation from the Doctor Portal (/doctor) to test diagnostic fulfillment here.
+                    </p>
+                  </div>
+                ) : (
+                  pendingOrders.map((order) => {
+                    const isSelected = activeOrder?.id === order.id;
+                    const isStat = order.priority === 'STAT';
+                    const isUrgent = order.priority === 'URGENT';
 
-                  return (
-                    <div
-                      key={order.id}
-                      className={`p-4 rounded-xl border transition-all ${
-                        isSelected
-                          ? 'border-amber-500 bg-amber-50/40 shadow-sm'
-                          : 'border-slate-200 bg-slate-50/40 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-slate-900">{order.testName}</span>
-                            <span
-                              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                                isUrgent
-                                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                  : 'bg-blue-100 text-blue-800 border border-blue-200'
-                              }`}
-                            >
-                              {order.priority}
-                            </span>
+                    return (
+                      <div
+                        key={order.id}
+                        className={`p-4 rounded-2xl border transition-all ${
+                          isSelected
+                            ? 'border-amber-500/80 bg-amber-500/10 shadow-lg shadow-amber-500/10'
+                            : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-sm text-white">{order.testName}</span>
+                              <span
+                                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                                  isStat
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse'
+                                    : isUrgent
+                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                    : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                                }`}
+                              >
+                                {order.priority}
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-400 font-mono mt-0.5">
+                              Code: {order.orderCode} &bull; LOINC: {order.testCode}
+                            </div>
                           </div>
-                          <div className="text-xs text-slate-500 font-mono">
-                            Order Code: {order.orderCode} &bull; LOINC: {order.testCode}
-                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => selectOrderForResultEntry(order)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-1.5 transition-all self-start sm:self-center ${
+                              isSelected
+                                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                            }`}
+                          >
+                            <span>{isSelected ? 'Active for Entry' : 'Enter Results'}</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => selectOrderForResultEntry(order)}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm flex items-center justify-center gap-1.5 transition-all self-start sm:self-center"
-                        >
-                          <span>{isSelected ? 'Active for Entry' : 'Enter Results'}</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="text-[11px] text-slate-400 pt-2 border-t border-slate-800/80 flex flex-wrap gap-x-4 gap-y-1">
+                          <div>
+                            Dr: <span className="font-semibold text-slate-200">{order.doctor?.fullName || 'Physician'}</span>
+                          </div>
+                          <div>
+                            Facility: <span className="font-semibold text-slate-200">{order.facility?.name || 'Hospital'}</span>
+                          </div>
+                          {order.clinicalNotes && (
+                            <div className="w-full text-slate-400 italic mt-0.5">
+                              Notes: &ldquo;{order.clinicalNotes}&rdquo;
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* Fulfilled Reports Tab */}
+            {worklistTab === 'COMPLETED' && (
+              <div className="space-y-3">
+                {completedOrders.length === 0 ? (
+                  <div className="text-center py-10 text-xs text-slate-500">
+                    No completed reports yet for this patient.
+                  </div>
+                ) : (
+                  completedOrders.map((co) => (
+                    <div
+                      key={co.id}
+                      className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-200">{co.testName}</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            COMPLETED
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 font-mono">
+                          Code: {co.orderCode} &bull; Fulfilled:{' '}
+                          {new Date(co.completedAt || co.orderedAt).toLocaleString()}
+                        </div>
                       </div>
 
-                      <div className="text-[11px] text-slate-600 pt-2 border-t border-slate-200/60 flex flex-wrap gap-x-4 gap-y-1">
-                        <div>
-                          Requested by: <span className="font-semibold text-slate-800">{order.doctor?.fullName || 'Physician'}</span>
-                        </div>
-                        <div>
-                          Facility: <span className="font-semibold text-slate-800">{order.facility?.name || 'Hospital'}</span>
-                        </div>
-                        {order.clinicalNotes && (
-                          <div className="w-full text-slate-500 italic mt-0.5">
-                            Notes: &ldquo;{order.clinicalNotes}&rdquo;
-                          </div>
-                        )}
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-sm self-start sm:self-center">
+                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                        <span>Verified Ed25519 Record</span>
                       </div>
                     </div>
-                  );
-                })}
+                  ))
+                )}
               </div>
             )}
           </div>
 
-          {/* Structured Result Entry & Cryptographic Signing Pad */}
-          {activeOrder && (
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <FileCheck className="w-5 h-5 text-amber-600" />
+          {/* Cryptographic Trust Information Panel */}
+          <div className="rounded-3xl bg-slate-950 border border-slate-800 p-5 shadow-2xl space-y-3 text-xs">
+            <div className="flex items-center gap-2 text-emerald-400 font-bold uppercase tracking-wider text-[11px]">
+              <Lock className="w-4 h-4" />
+              <span>Client-Side Facility Cryptographic Signing</span>
+            </div>
+            <p className="text-slate-400 leading-relaxed text-[11px]">
+              Per DESIGN.md Section 4: Demo Lab Colombo signs the HL7 FHIR DiagnosticReport + Observation bundle locally
+              with its private Ed25519 key. The server validates the signature against the facility public key, creating an
+              immutable, tamper-proof record.
+            </p>
+          </div>
+        </div>
+
+        {/* Right Column (7 cols): Structured Result Entry & Facility Signing Pad */}
+        <div className="lg:col-span-7 space-y-6">
+          {activeOrder ? (
+            <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 shadow-2xl space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <FileCheck className="w-5 h-5" />
+                  </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">
-                      Structured Observation Entry & Cryptographic Signing
+                    <h3 className="text-sm font-bold text-white">
+                      Structured Observation Entry & Signing
                     </h3>
-                    <p className="text-[11px] text-slate-500">
-                      Fulfilling Order: <span className="font-mono font-bold text-slate-800">{activeOrder.orderCode}</span> ({activeOrder.testName})
+                    <p className="text-[11px] text-slate-400">
+                      Fulfilling Order: <span className="font-mono font-bold text-amber-300">{activeOrder.orderCode}</span> ({activeOrder.testName})
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                <span className="text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-700 text-slate-300">
                   FHIR DiagnosticReport
                 </span>
               </div>
 
-              {/* Structured Tabular Observation Input Pad */}
+              {/* Structured Observation Input Form */}
               <form onSubmit={handleSignAndUpload} className="space-y-4">
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/60">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
+                    <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 font-bold uppercase text-[10px]">
                       <tr>
                         <th className="py-2.5 px-3">Analyte / Test</th>
                         <th className="py-2.5 px-3">LOINC</th>
@@ -529,10 +763,10 @@ export default function LabPortal() {
                         <th className="py-2.5 px-3">Standard Reference Interval</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-800/80">
                       <tr>
-                        <td className="py-3 px-3 font-bold text-slate-900">{activeOrder.testName}</td>
-                        <td className="py-3 px-3 font-mono text-slate-500">{activeOrder.testCode}</td>
+                        <td className="py-3 px-3 font-bold text-white">{activeOrder.testName}</td>
+                        <td className="py-3 px-3 font-mono text-slate-400">{activeOrder.testCode}</td>
                         <td className="py-3 px-3">
                           <input
                             type="number"
@@ -541,7 +775,7 @@ export default function LabPortal() {
                             value={observationValue}
                             onChange={(e) => setObservationValue(e.target.value)}
                             placeholder="Value"
-                            className="w-full text-sm font-bold p-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"
+                            className="w-full text-sm font-bold p-2 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-400 text-white"
                           />
                         </td>
                         <td className="py-3 px-3">
@@ -551,7 +785,7 @@ export default function LabPortal() {
                             value={observationUnit}
                             onChange={(e) => setObservationUnit(e.target.value)}
                             placeholder="Unit"
-                            className="w-full text-xs font-mono p-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-700"
+                            className="w-full text-xs font-mono p-2 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-400 text-slate-200"
                           />
                         </td>
                         <td className="py-3 px-3">
@@ -561,7 +795,7 @@ export default function LabPortal() {
                             value={referenceRange}
                             onChange={(e) => setReferenceRange(e.target.value)}
                             placeholder="Range"
-                            className="w-full text-xs p-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-700"
+                            className="w-full text-xs p-2 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-400 text-slate-200"
                           />
                         </td>
                       </tr>
@@ -571,7 +805,7 @@ export default function LabPortal() {
 
                 {/* Reference Range Trigger Banner */}
                 {evalResult && (
-                  <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs ${evalResult.color}`}>
+                  <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs ${evalResult.color}`}>
                     <div className="flex items-center gap-2">
                       <Sparkles className="w-4 h-4 flex-shrink-0" />
                       <div>
@@ -579,21 +813,21 @@ export default function LabPortal() {
                         <span>{evalResult.label}</span>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/80 border border-current">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-900/80 border border-current">
                       Status: {evalResult.status}
                     </span>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                     Pathologist / Medical Technologist Remarks
                   </label>
                   <textarea
                     rows={2}
                     value={technicianNotes}
                     onChange={(e) => setTechnicianNotes(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full text-xs p-3 rounded-2xl bg-slate-950 border border-slate-700 focus:outline-none focus:border-emerald-400 text-slate-200"
                   />
                 </div>
 
@@ -601,7 +835,7 @@ export default function LabPortal() {
                   <button
                     type="submit"
                     disabled={isUploading}
-                    className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                    className="w-full py-3.5 px-4 rounded-2xl text-xs font-bold bg-gradient-to-r from-amber-500 via-emerald-600 to-teal-500 hover:from-amber-400 hover:to-teal-400 text-slate-950 shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                   >
                     <Upload className="w-4 h-4" />
                     <span>
@@ -613,41 +847,29 @@ export default function LabPortal() {
                 </div>
               </form>
             </div>
-          )}
-
-          {/* Completed Orders History */}
-          {completedOrders.length > 0 && (
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Fulfilled & Verified Laboratory Reports</span>
-              </h3>
-
-              <div className="space-y-3">
-                {completedOrders.map((co) => (
-                  <div
-                    key={co.id}
-                    className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900">{co.testName}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                          COMPLETED
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 font-mono">
-                        Code: {co.orderCode} &bull; Completed: {new Date(co.completedAt || co.orderedAt).toLocaleString()}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-800 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-sm">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      <span>Verified Ed25519 Record</span>
-                    </div>
-                  </div>
-                ))}
+          ) : (
+            <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-12 text-center shadow-2xl space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+                <FlaskConical className="w-7 h-7" />
               </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-white">Diagnostic Observation Station Idle</h3>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  Select a pending test from the worklist on the left to enter observation parameters and generate a
+                  facility-signed HL7 FHIR DiagnosticReport.
+                </p>
+              </div>
+
+              {pendingOrders.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => selectOrderForResultEntry(pendingOrders[0])}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 inline-flex items-center gap-1.5 transition-all"
+                >
+                  <span>Fulfill First Order ({pendingOrders[0].testName})</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           )}
         </div>
