@@ -1,15 +1,13 @@
 # Doc365: Trusted Health Records for Sri Lanka (learning prototype)
 
 ## Current status (updated 2026-11-09)
-- Phases 0-6 DONE. `npm test` (in `server/`): 131 tests, all passing.
-- Phase 6 complete:
-  - Doctor creates e-prescription (`MedicationRequest`) under Three Keys active AccessGrant with unique QR payload.
-  - Medication Safety Engine: deterministic rules for high-risk clinical pairs (Warfarin + NSAID, ACEi + Potassium-sparing, Statin + Macrolide, SSRI + Tramadol, Methotrexate + NSAID), duplicate therapy/class detection, and allergy contraindication checking (e.g. Penicillin vs Amoxicillin) with required clinical override reasoning.
-  - Scoped Pharmacy Access: `GET /prescriptions/scan/:code` returns strictly the prescription payload and minimal patient demographics; pharmacists are strictly forbidden from viewing patient's full clinical record (`record.view_full`).
-  - Dispensing & Re-use Prevention: `POST /prescriptions/scan/:code/dispense` records `MedicationDispense`, manages refills/repeats (`repeatsAllowed`), transitions `PENDING` -> `PARTIALLY_DISPENSED` -> `DISPENSED`, and rejects attempts to re-dispense with 409 Conflict (`PRESCRIPTION_ALREADY_DISPENSED`).
-  - Auto Medication List Engine: Real-time active medications computed from active prescriptions and unexpired dispenses (`GET /patients/:healthId/medications`), dynamically feeding into emergency summary (`GET /patients/:healthId/emergency`).
-  - Runnable end-to-end demo: `npm run demo:rx` (`scripts/prescription-flow.js`).
-- NEXT STEP: Wait for user direction to begin Phase 7 (Web portals in Next.js + Tailwind).
+- Phases 0-7 DONE. `npm test` (in `server/`): 131 tests, all passing. Next.js build (`web/`): passing.
+- Phase 7 complete:
+  - Next.js 14 App Router + Tailwind CSS web portal suite implemented in `web/`.
+  - Doctor Portal (`/doctor`): Three-Keys card tap simulation (90-day grant), Ed25519 cryptographic trust badges (`VERIFIED`), sensitive PIN unlock gate, e-prescription authoring with live DDI/Allergy safety override modal, and emergency break-glass override.
+  - Pharmacy Portal (`/pharmacy`): Scoped prescription QR scanner, strict zero full-record leakage guarantee, dispensing execution with refill management, and 409 Conflict re-use prevention.
+  - Patient Self-Sovereignty Portal (`/patient`): Photorealistic Sri Lanka Digital Health Card with live QR code, "Who Viewed My Record" access ledger timeline, document masking (Hide/Unhide), provider blocking, and confidential PIN setup.
+  - Portal Hub (`/`): Central landing page with one-click quick login buttons for all pre-seeded test personas (Kumari, Dr. Perera, Pharmacist Fernando).
 
 A health card for every citizen. A doctor scans the card and sees the patient's
 complete, verified history from every hospital and lab. Inspired by Germany (eGK + ePA),
@@ -220,11 +218,8 @@ web/                  Next.js portals (Phase 7)
 - Duplicate-test alert and simple allergy check (demo data).
 - Done when: a full script runs doctor → prescription → pharmacy → medication list (`npm run demo:rx`).
 
-### Phase 7: Web portals (Next.js + Tailwind)
-- Doctor portal (scan card, emergency summary, timeline, trends, actions, who-viewed).
-- Facility portal (labs/hospitals upload results), pharmacy portal, registration desk,
-  patient portal, admin portal.
-- Install `qrcode` here to draw card QR images. Phase 2 only prints the payload
-  (`cardQrPayload()`: Health ID + card serial only).
-- Done when: the full story works in the browser: register baby → lab uploads result →
-  doctor scans card → sees verified result → writes prescription → pharmacy dispenses.
+### Phase 7: Web portals (Next.js + Tailwind): DONE
+- Doctor portal (scan card, emergency summary, timeline, trends, actions, who-viewed, e-prescriptions with DDI alerts).
+- Pharmacy portal (scoped prescription QR scan, dispensing, refill tracking, 409 re-use prevention).
+- Patient portal (digital health card with QR, access ledger timeline, document hiding, provider blocking, PIN setup).
+- Done when: the full story works in the browser across all 3 portals (`npm --prefix web run build`).

@@ -9,6 +9,17 @@ export const app = express();
 
 app.use(express.json({ limit: '100kb' }));
 
+// CORS middleware for local frontend development (Next.js at localhost:3000)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-patient-pin');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 // Health check: is the server up, and can it reach the database?
 app.get('/health', async (req, res) => {
   try {
