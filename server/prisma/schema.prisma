@@ -60,6 +60,10 @@ model Patient {
   accessGrants   AccessGrant[]
   providerBlocks PatientProviderBlock[]
   hiddenRecords  HiddenRecord[]
+  // Phase 6: e-prescriptions, dispenses, and allergies
+  prescriptions  Prescription[]
+  dispenses      MedicationDispense[]
+  allergies      PatientAllergy[]
 }
 
 // FHIR R4 administrative gender values, lowercase exactly as FHIR uses them,
@@ -155,6 +159,9 @@ model Facility {
   // Phase 5: access grants and patient blocks
   accessGrants   AccessGrant[]
   providerBlocks PatientProviderBlock[]
+  // Phase 6: prescriptions issued and dispenses fulfilled
+  prescriptions  Prescription[]
+  dispenses      MedicationDispense[]
 }
 
 enum UserStatus {
@@ -188,6 +195,10 @@ model User {
   revokedAccessGrants  AccessGrant[]          @relation("RevokedAccessGrants")
   doctorProviderBlocks PatientProviderBlock[]
   hiddenRecords        HiddenRecord[]
+  // Phase 6: prescriptions prescribed, medications dispensed, allergies recorded
+  prescribedPrescriptions Prescription[]
+  dispensedMedications    MedicationDispense[]
+  recordedAllergies       PatientAllergy[]
 }
 
 // Staff roles from DESIGN.md section 5. PATIENT is not here: patient access comes
@@ -390,4 +401,102 @@ model HiddenRecord {
 
   @@unique([patientId, lineageId])
   @@index([patientId, active])
+}
+
+// ---------- Phase 6: E-prescriptions, Dispensing, and Medication Safety ----------
+
+enum PrescriptionState {
+  PENDING
+  PARTIALLY_DISPENSED
+  DISPENSED
+  CANCELLED
+  EXPIRED
+}
+
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
+// Doctor issues a signed e-prescription with a unique QR scannable code.
+// The pharmacy scans this code and sees strictly this prescription.
+// Once dispensed, dispenseState transitions to DISPENSED (or PARTIALLY_DISPENSED if refills remain).
+model Prescription {
+  id                     String            @id @default(uuid()) @db.Uuid
+  // Human-readable, scannable QR payload code, e.g. "DEMO-RX-20261108-ABCD"
+  prescriptionCode       String            @unique
+  patientId              String            @db.Uuid
+  patient                Patient           @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  facilityId             String            @db.Uuid
+  facility               Facility          @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  doctorId               String            @db.Uuid
+  doctor                 User              @relation(fields: [doctorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  medicationCode         String
+  medicationName         String
+  dosageInstruction      String
+  quantity               Int
+  daysSupply             Int
+  repeatsAllowed         Int               @default(0)
+  repeatsRemaining       Int               @default(0)
+  quantityDispensedTotal Int               @default(0)
+  dispenseState          PrescriptionState @default(PENDING)
+  // HL7 FHIR R4 MedicationRequest JSON resource
+  fhir                   Json
+  // Optional digital signature provenance if signed
+  provenance             Json?
+  bundleSha256           String?
+  signingKeyFingerprint  String?
+  overrideReason         String?
+  authoredOn             DateTime          @default(now())
+  expiresAt              DateTime
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  dispenses MedicationDispense[]
+
+  @@index([patientId, dispenseState])
+  @@index([facilityId])
+  @@index([doctorId])
+}
+
+// Medication dispense record by pharmacy. Cannot be undone or deleted.
+// A dispensed prescription cannot be reused.
+model MedicationDispense {
+  id                 String       @id @default(uuid()) @db.Uuid
+  prescriptionId     String       @db.Uuid
+  prescription       Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  patientId          String       @db.Uuid
+  patient            Patient      @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  pharmacyFacilityId String       @db.Uuid
+  pharmacyFacility   Facility     @relation(fields: [pharmacyFacilityId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  pharmacistUserId   String       @db.Uuid
+  pharmacistUser     User         @relation(fields: [pharmacistUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  quantityDispensed  Int
+  daysSupply         Int
+  notes              String?
+  // HL7 FHIR R4 MedicationDispense JSON resource
+  fhir               Json
+  dispensedAt        DateTime     @default(now())
+
+  @@index([prescriptionId])
+  @@index([patientId, dispensedAt])
+  @@index([pharmacyFacilityId])
+}
+
+// Documented patient allergy or intolerance for safety checking (DDI & allergy engine).
+model PatientAllergy {
+  id               String          @id @default(uuid()) @db.Uuid
+  patientId        String          @db.Uuid
+  patient          Patient         @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  substance        String
+  severity         AllergySeverity @default(MODERATE)
+  reaction         String?
+  recordedByUserId String?         @db.Uuid
+  recordedByUser   User?           @relation(fields: [recordedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  recordedAt       DateTime        @default(now())
+  active           Boolean         @default(true)
+
+  @@index([patientId, active])
+  @@index([substance])
 }

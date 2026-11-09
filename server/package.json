@@ -20,7 +20,8 @@
     "seed": "node --env-file=../.env scripts/seed.js",
     "keys": "node scripts/generate-lab-keys.js",
     "demo:signing": "node scripts/demo-signing.js",
-    "demo:lab": "node --env-file=../.env scripts/lab-client.js"
+    "demo:lab": "node --env-file=../.env scripts/lab-client.js",
+    "demo:rx": "node --env-file=../.env scripts/prescription-flow.js"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

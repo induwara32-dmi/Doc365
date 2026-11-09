@@ -29,6 +29,13 @@ import {
   optInPatient,
   getAccessLedger,
 } from '../access/access-service.js';
+import {
+  createPrescription,
+  getScannedPrescription,
+  dispensePrescription,
+  getActiveMedicationList,
+  recordPatientAllergy,
+} from '../medications/prescription-service.js';
 
 const api = secureRouter();
 
@@ -90,6 +97,30 @@ const UnhideRecordBody = z.object({
 
 const OptOutBody = z.object({
   reason: z.string().trim().max(500).optional(),
+});
+
+const CreatePrescriptionBody = z.object({
+  patientHealthId: z.string().trim().min(5),
+  medicationCode: z.string().trim().min(2).optional(),
+  medicationName: z.string().trim().min(2).optional(),
+  dosageInstruction: z.string().trim().min(3).max(500),
+  quantity: z.number().int().positive(),
+  daysSupply: z.number().int().positive(),
+  repeatsAllowed: z.number().int().nonnegative().optional(),
+  validityDays: z.number().int().positive().optional(),
+  overrideReason: z.string().trim().min(5).max(1000).optional(),
+});
+
+const DispensePrescriptionBody = z.object({
+  quantityDispensed: z.number().int().positive().optional(),
+  daysSupply: z.number().int().positive().optional(),
+  notes: z.string().trim().max(500).optional(),
+});
+
+const RecordAllergyBody = z.object({
+  substance: z.string().trim().min(2).max(100),
+  severity: z.enum(['MILD', 'MODERATE', 'SEVERE']).optional(),
+  reaction: z.string().trim().max(200).optional(),
 });
 
 async function findPatient(healthId) {
@@ -253,6 +284,41 @@ api.post('/patients/:healthId/cards/replace', 'card.replace', async (req, res) =
   const patient = await findPatient(req.params.healthId);
   const card = await replaceCard(patient.id, { oldStatus, reason, actor: req.actor });
   res.json({ card: { serial: card.serial, status: card.status }, qrPayload: cardQrPayload(patient.healthId, card.serial) });
+});
+
+// ---------- Phase 6: E-prescriptions, Dispensing, Auto Medication List, and Allergies ----------
+
+// 1. Doctor creates signed e-prescription (with DDI, duplicate therapy & allergy checks)
+api.post('/prescriptions', 'prescription.create', async (req, res) => {
+  const body = parseBody(CreatePrescriptionBody, req.body);
+  const result = await createPrescription(body, { actor: req.actor });
+  res.status(201).json(result);
+});
+
+// 2. Scoped pharmacy QR scan (strictly limited to prescription payload)
+api.get('/prescriptions/scan/:code', 'prescription.view_scanned', async (req, res) => {
+  const result = await getScannedPrescription(req.params.code, { actor: req.actor });
+  res.json(result);
+});
+
+// 3. Pharmacy dispenses prescription (with re-use prevention & repeats management)
+api.post('/prescriptions/scan/:code/dispense', 'prescription.dispense', async (req, res) => {
+  const body = parseBody(DispensePrescriptionBody, req.body);
+  const result = await dispensePrescription(req.params.code, body, { actor: req.actor });
+  res.json(result);
+});
+
+// 4. Auto Medication List (active medications from prescriptions and dispenses)
+api.get('/patients/:healthId/medications', 'medication.view_active', async (req, res) => {
+  const result = await getActiveMedicationList(req.params.healthId, { actor: req.actor });
+  res.json(result);
+});
+
+// 5. Document patient allergy
+api.post('/patients/:healthId/allergies', 'allergy.manage', async (req, res) => {
+  const body = parseBody(RecordAllergyBody, req.body);
+  const allergy = await recordPatientAllergy(req.params.healthId, body, { actor: req.actor });
+  res.status(201).json({ allergy });
 });
 
 export const apiRouter = api.router;

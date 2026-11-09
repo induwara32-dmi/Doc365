@@ -55,8 +55,12 @@ export const PERMISSIONS = {
   // Corrections are new versions (Phase 4), only of your own (facility's) records
   'record.correct': { LAB_STAFF: OWN_FACILITY, HOSPITAL_STAFF: OWN_FACILITY, DOCTOR: OWN_ENTRY },
 
-  // A pharmacy sees only the scanned prescription (Phase 6)
+  // Phase 6: E-prescriptions, dispensing, medication list, and allergies
+  'prescription.create': { DOCTOR: ALWAYS },
   'prescription.view_scanned': { PHARMACIST: ALWAYS },
+  'prescription.dispense': { PHARMACIST: ALWAYS },
+  'medication.view_active': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS, PHARMACIST: ALWAYS, [PATIENT]: ALWAYS },
+  'allergy.manage': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS, [PATIENT]: ALWAYS },
 
   // Phase 5: Access Engine and Consent Controls
   'access.scan': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS },

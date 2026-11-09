@@ -1,18 +1,15 @@
 # Doc365: Trusted Health Records for Sri Lanka (learning prototype)
 
-## Current status (updated 2026-11-07)
-- Phases 0-5 DONE. `npm test` (in `server/`): 125 tests, all passing.
-- Phase 5 complete:
-  - Three Keys Rule: Card scan + active doctor session + registered hospital creates a scoped 90-day AccessGrant ledger entry.
-  - Sensitive records require Card + Patient PIN verification (bcrypt cost 12).
-  - Document hiding via separate consent ledger (`HiddenRecord`), preserving append-only clinical records.
-  - Provider blocking (`PatientProviderBlock`) with immediate revocation of active grants.
-  - Patient opt-out and opt-in controls.
-  - Emergency summary (`GET /patients/:healthId/emergency`) cardless minimal facts.
-  - Emergency break-glass override (`POST /access/break-glass`, `EMERGENCY_OVERRIDE_ACCESSED`) with mandatory justification and high-priority audit trail.
-  - Parental controls (<16 years) vs independent access (>=16 years).
-  - Access ledger timeline ("Who viewed my record").
-- NEXT STEP: Wait for user direction to begin Phase 6 (E-prescriptions and medication list).
+## Current status (updated 2026-11-09)
+- Phases 0-6 DONE. `npm test` (in `server/`): 131 tests, all passing.
+- Phase 6 complete:
+  - Doctor creates e-prescription (`MedicationRequest`) under Three Keys active AccessGrant with unique QR payload.
+  - Medication Safety Engine: deterministic rules for high-risk clinical pairs (Warfarin + NSAID, ACEi + Potassium-sparing, Statin + Macrolide, SSRI + Tramadol, Methotrexate + NSAID), duplicate therapy/class detection, and allergy contraindication checking (e.g. Penicillin vs Amoxicillin) with required clinical override reasoning.
+  - Scoped Pharmacy Access: `GET /prescriptions/scan/:code` returns strictly the prescription payload and minimal patient demographics; pharmacists are strictly forbidden from viewing patient's full clinical record (`record.view_full`).
+  - Dispensing & Re-use Prevention: `POST /prescriptions/scan/:code/dispense` records `MedicationDispense`, manages refills/repeats (`repeatsAllowed`), transitions `PENDING` -> `PARTIALLY_DISPENSED` -> `DISPENSED`, and rejects attempts to re-dispense with 409 Conflict (`PRESCRIPTION_ALREADY_DISPENSED`).
+  - Auto Medication List Engine: Real-time active medications computed from active prescriptions and unexpired dispenses (`GET /patients/:healthId/medications`), dynamically feeding into emergency summary (`GET /patients/:healthId/emergency`).
+  - Runnable end-to-end demo: `npm run demo:rx` (`scripts/prescription-flow.js`).
+- NEXT STEP: Wait for user direction to begin Phase 7 (Web portals in Next.js + Tailwind).
 
 A health card for every citizen. A doctor scans the card and sees the patient's
 complete, verified history from every hospital and lab. Inspired by Germany (eGK + ePA),
@@ -216,12 +213,12 @@ web/                  Next.js portals (Phase 7)
 - "Who viewed my record" endpoint for the patient.
 - Done when: tests cover all rows of the access table in DESIGN.md section 3.
 
-### Phase 6: E-prescriptions and medication list
+### Phase 6: E-prescriptions and medication list: DONE
 - Doctor issues signed MedicationRequest + QR. Pharmacy scans → sees only that prescription
   → records MedicationDispense; a dispensed prescription cannot be reused.
 - Medication list builds automatically from prescriptions and dispenses.
 - Duplicate-test alert and simple allergy check (demo data).
-- Done when: a full script runs doctor → prescription → pharmacy → medication list.
+- Done when: a full script runs doctor → prescription → pharmacy → medication list (`npm run demo:rx`).
 
 ### Phase 7: Web portals (Next.js + Tailwind)
 - Doctor portal (scan card, emergency summary, timeline, trends, actions, who-viewed).

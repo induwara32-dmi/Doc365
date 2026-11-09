@@ -252,10 +252,37 @@ export async function getEmergencySummary(healthId, { actor, db = prisma }) {
 
   // Emergency summary is minimal subset: allergies, conditions, medications, blood group
   const fhirPatient = patient.fhir;
+
+  // Active allergies from Phase 6 PatientAllergy table
+  const activeAllergies = await db.patientAllergy.findMany({
+    where: { patientId: patient.id, active: true },
+    select: { substance: true, severity: true, reaction: true },
+  });
+
+  // Active medications from Phase 6 unexpired dispenses
+  const now = new Date();
+  const recentDispenses = await db.medicationDispense.findMany({
+    where: { patientId: patient.id },
+    include: { prescription: true },
+    orderBy: { dispensedAt: 'desc' },
+  });
+  const currentMedications = [];
+  for (const d of recentDispenses) {
+    const expires = new Date(d.dispensedAt.getTime() + d.daysSupply * 24 * 60 * 60 * 1000);
+    if (expires >= now) {
+      currentMedications.push({
+        medicationCode: d.prescription.medicationCode,
+        medicationName: d.prescription.medicationName,
+        dosageInstruction: d.prescription.dosageInstruction,
+        activeUntil: expires,
+      });
+    }
+  }
+
   const emergencySummary = {
-    allergies: [],
+    allergies: activeAllergies,
     chronicConditions: [],
-    currentMedications: [],
+    currentMedications,
     bloodGroup: fhirPatient.extension?.find((e) => e.url?.includes('blood-group'))?.valueString ?? 'Unknown',
   };
 
