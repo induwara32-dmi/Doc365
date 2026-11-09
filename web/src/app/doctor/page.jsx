@@ -43,7 +43,7 @@ import {
   login,
   getPublicFacilities,
 } from '../../lib/api';
-import { DEMO_PATIENTS, DEMO_DRUGS, DEMO_LAB_TESTS } from '../../lib/demo-data';
+import { DEMO_PATIENTS, DEMO_DRUGS, DEMO_LAB_TESTS, FREQUENT_ROUTINE_DRUGS } from '../../lib/demo-data';
 import DdiSafetyModal from '../../components/DdiSafetyModal';
 import BreakGlassModal from '../../components/BreakGlassModal';
 import SensitiveGateModal from '../../components/SensitiveGateModal';
@@ -99,8 +99,11 @@ export default function DoctorPortal() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [unlockedPin, setUnlockedPin] = useState(null);
 
-  // Prescription Form State
+  // Prescription Form State & Autocomplete
   const [selectedDrug, setSelectedDrug] = useState(DEMO_DRUGS[0]);
+  const [drugSearchQuery, setDrugSearchQuery] = useState(DEMO_DRUGS[0].name);
+  const [isDrugDropdownOpen, setIsDrugDropdownOpen] = useState(false);
+  const drugDropdownRef = useRef(null);
   const [dosageInstruction, setDosageInstruction] = useState(DEMO_DRUGS[0].defaultDosage);
   const [quantity, setQuantity] = useState(DEMO_DRUGS[0].quantity);
   const [daysSupply, setDaysSupply] = useState(DEMO_DRUGS[0].daysSupply);
@@ -159,14 +162,60 @@ export default function DoctorPortal() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Close drug dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (drugDropdownRef.current && !drugDropdownRef.current.contains(event.target)) {
+        setIsDrugDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Update prescription defaults when drug changes
   const handleDrugChange = (drug) => {
     setSelectedDrug(drug);
-    setDosageInstruction(drug.defaultDosage);
-    setQuantity(drug.quantity);
-    setDaysSupply(drug.daysSupply);
+    setDrugSearchQuery(drug.name);
+    setDosageInstruction(drug.defaultDosage || '1 tablet once daily');
+    setQuantity(drug.quantity || 30);
+    setDaysSupply(drug.daysSupply || 30);
     setRepeatsAllowed(drug.repeatsAllowed || 0);
+    setIsDrugDropdownOpen(false);
   };
+
+  // Add custom unlisted medication
+  const handleSelectCustomDrug = (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const slug = trimmed.replace(/[^A-Za-z0-9]/g, '-').slice(0, 16).toUpperCase();
+    const customDrug = {
+      code: `CUSTOM-${slug}`,
+      name: trimmed,
+      generic: trimmed,
+      class: 'OTHER',
+      defaultDosage: '1 tablet once daily as directed',
+      quantity: 30,
+      daysSupply: 30,
+      repeatsAllowed: 0,
+      tag: 'Custom Unlisted Drug',
+    };
+    handleDrugChange(customDrug);
+  };
+
+  const filteredDrugs = DEMO_DRUGS.filter((d) => {
+    if (!drugSearchQuery.trim()) return true;
+    const q = drugSearchQuery.toLowerCase();
+    return (
+      d.name.toLowerCase().includes(q) ||
+      (d.generic && d.generic.toLowerCase().includes(q)) ||
+      d.code.toLowerCase().includes(q) ||
+      (d.tag && d.tag.toLowerCase().includes(q)) ||
+      (d.class && d.class.toLowerCase().includes(q))
+    );
+  });
+
+  const routineDrugs = DEMO_DRUGS.filter((d) => FREQUENT_ROUTINE_DRUGS.includes(d.code));
 
   // Select preset and optionally tap card immediately
   const handleSelectPreset = (preset, autoTap = true) => {
@@ -729,26 +778,163 @@ export default function DoctorPortal() {
                 </span>
               </div>
 
-              {/* Quick drug presets */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-2">Select Medication</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {DEMO_DRUGS.map((d) => (
-                    <button
-                      key={d.code}
-                      type="button"
-                      onClick={() => handleDrugChange(d)}
-                      className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
-                        selectedDrug.code === d.code
-                          ? 'border-cyan-500/60 bg-cyan-950/40 font-bold text-cyan-200 ring-1 ring-cyan-500/50'
-                          : 'border-slate-800 hover:bg-slate-800/60 text-slate-300'
-                      }`}
-                    >
-                      <div className="truncate">{d.name.split(' ')[0]} {d.name.split(' ')[1]}</div>
-                      <div className="text-[10px] text-slate-500 font-normal">{d.tag}</div>
-                    </button>
-                  ))}
+              {/* Searchable Medication Autocomplete & Custom Entry */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-400">
+                    Search Medication Catalog or Enter Custom Drug
+                  </label>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {DEMO_DRUGS.length} Presets Available
+                  </span>
                 </div>
+
+                {/* Autocomplete Input Container */}
+                <div ref={drugDropdownRef} className="relative">
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Search className="w-4 h-4 text-cyan-400" />
+                    </div>
+
+                    <input
+                      type="text"
+                      value={drugSearchQuery}
+                      onChange={(e) => {
+                        setDrugSearchQuery(e.target.value);
+                        setIsDrugDropdownOpen(true);
+                      }}
+                      onFocus={() => setIsDrugDropdownOpen(true)}
+                      placeholder="Type medication name (e.g. Losartan, Metformin, Azithromycin)..."
+                      className="w-full text-xs p-3 pl-10 pr-10 rounded-2xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                    />
+
+                    {drugSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDrugSearchQuery('');
+                          setIsDrugDropdownOpen(true);
+                        }}
+                        className="absolute right-3 text-slate-500 hover:text-slate-300 text-xs p-1"
+                        title="Clear"
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Floating Autocomplete Dropdown */}
+                  {isDrugDropdownOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl p-2 z-50 max-h-72 overflow-y-auto space-y-1">
+                      {filteredDrugs.length > 0 ? (
+                        filteredDrugs.map((d) => (
+                          <button
+                            key={d.code}
+                            type="button"
+                            onClick={() => handleDrugChange(d)}
+                            className={`w-full p-2.5 rounded-xl text-left text-xs transition-colors flex items-center justify-between ${
+                              selectedDrug.code === d.code
+                                ? 'bg-cyan-500/20 text-cyan-200 font-bold border border-cyan-500/30'
+                                : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                            }`}
+                          >
+                            <div className="space-y-0.5">
+                              <div className="font-semibold text-white flex items-center gap-2">
+                                <span>{d.name}</span>
+                                {d.generic && d.generic !== d.name && (
+                                  <span className="text-[10px] text-slate-400 font-normal">({d.generic})</span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
+                                <span className="text-cyan-400">{d.code}</span>
+                                <span>&bull;</span>
+                                <span className="text-amber-300">{d.class}</span>
+                                <span>&bull;</span>
+                                <span>{d.tag}</span>
+                              </div>
+                            </div>
+                            {selectedDrug.code === d.code && (
+                              <Check className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                            )}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-3 text-center text-xs text-slate-500">
+                          No exact catalog match found.
+                        </div>
+                      )}
+
+                      {/* Custom Medication Entry Action */}
+                      {drugSearchQuery.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectCustomDrug(drugSearchQuery.trim())}
+                          className="w-full p-3 rounded-xl text-left text-xs bg-slate-900/90 hover:bg-cyan-950/40 border-t border-slate-800 flex items-center justify-between text-cyan-300 transition-colors mt-1"
+                        >
+                          <div className="flex items-center gap-2">
+                            <PlusCircle className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                            <div>
+                              <span className="text-slate-400">Prescribe Custom Medication: </span>
+                              <strong className="text-white">&ldquo;{drugSearchQuery.trim()}&rdquo;</strong>
+                            </div>
+                          </div>
+                          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 flex-shrink-0">
+                            Custom Drug
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Subtle Quick-Select Chips for Routine Prescriptions */}
+                <div className="flex items-center gap-2 flex-wrap pt-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-amber-400" />
+                    Routine:
+                  </span>
+                  {routineDrugs.map((d) => {
+                    const isSelected = selectedDrug.code === d.code;
+                    return (
+                      <button
+                        key={d.code}
+                        type="button"
+                        onClick={() => handleDrugChange(d)}
+                        className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+                          isSelected
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shadow-sm'
+                            : 'bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                        }`}
+                      >
+                        {d.name.split(' ')[0]} {d.name.split(' ')[1]}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Selected Medication Card */}
+                {selectedDrug && (
+                  <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 flex items-center justify-center font-bold flex-shrink-0">
+                        <Pill className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-white text-sm">{selectedDrug.name}</div>
+                        <div className="text-[11px] text-slate-400 font-mono mt-0.5 flex items-center gap-2 flex-wrap">
+                          <span>Code: <strong className="text-cyan-400">{selectedDrug.code}</strong></span>
+                          <span>&bull;</span>
+                          <span>Class: <strong className="text-amber-300">{selectedDrug.class || 'OTHER'}</strong></span>
+                          <span>&bull;</span>
+                          <span className="text-slate-500">{selectedDrug.tag}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex-shrink-0">
+                      Selected Target
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Dosage & Parameters */}

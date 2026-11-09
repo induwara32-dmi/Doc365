@@ -10,7 +10,9 @@ export const DRUG_CATALOGUE = {
   // Antibiotics
   'AMOX-500': { code: 'AMOX-500', name: 'Amoxicillin 500mg capsules', class: 'PENICILLIN', generic: 'Amoxicillin' },
   'CLARITH-500': { code: 'CLARITH-500', name: 'Clarithromycin 500mg tablets', class: 'MACROLIDE', generic: 'Clarithromycin' },
+  'AZITH-500': { code: 'AZITH-500', name: 'Azithromycin 500mg tablets', class: 'MACROLIDE', generic: 'Azithromycin' },
   'CIPRO-500': { code: 'CIPRO-500', name: 'Ciprofloxacin 500mg tablets', class: 'FLUOROQUINOLONE', generic: 'Ciprofloxacin' },
+  'METRO-400': { code: 'METRO-400', name: 'Metronidazole 400mg tablets', class: 'NITROIMIDAZOLE', generic: 'Metronidazole' },
 
   // Analgesics & Anti-inflammatories
   'IBU-400': { code: 'IBU-400', name: 'Ibuprofen 400mg tablets', class: 'NSAID', generic: 'Ibuprofen' },
@@ -19,14 +21,23 @@ export const DRUG_CATALOGUE = {
   'PARA-500': { code: 'PARA-500', name: 'Paracetamol 500mg tablets', class: 'ANALGESIC', generic: 'Paracetamol' },
   'TRAM-50': { code: 'TRAM-50', name: 'Tramadol 50mg capsules', class: 'OPIOID', generic: 'Tramadol' },
 
-  // Cardiovascular & Anticoagulants
+  // Cardiovascular, Anticoagulants & Antidiabetic
   'WARF-5': { code: 'WARF-5', name: 'Warfarin Sodium 5mg tablets', class: 'ANTICOAGULANT', generic: 'Warfarin' },
+  'CLOP-75': { code: 'CLOP-75', name: 'Clopidogrel 75mg tablets', class: 'ANTIPLATELET', generic: 'Clopidogrel' },
   'LISIN-10': { code: 'LISIN-10', name: 'Lisinopril 10mg tablets', class: 'ACE_INHIBITOR', generic: 'Lisinopril' },
   'LOSAR-50': { code: 'LOSAR-50', name: 'Losartan Potassium 50mg tablets', class: 'ARB', generic: 'Losartan' },
+  'AMLO-5': { code: 'AMLO-5', name: 'Amlodipine 5mg tablets', class: 'CALCIUM_CHANNEL_BLOCKER', generic: 'Amlodipine' },
   'SPIRON-25': { code: 'SPIRON-25', name: 'Spironolactone 25mg tablets', class: 'POTASSIUM_SPARING_DIURETIC', generic: 'Spironolactone' },
   'ATOR-20': { code: 'ATOR-20', name: 'Atorvastatin 20mg tablets', class: 'STATIN', generic: 'Atorvastatin' },
   'SIMV-20': { code: 'SIMV-20', name: 'Simvastatin 20mg tablets', class: 'STATIN', generic: 'Simvastatin' },
   'METO-50': { code: 'METO-50', name: 'Metoprolol 50mg tablets', class: 'BETA_BLOCKER', generic: 'Metoprolol' },
+  'METF-500': { code: 'METF-500', name: 'Metformin Hydrochloride 500mg tablets', class: 'BIGUANIDE', generic: 'Metformin' },
+
+  // Gastrointestinal & Respiratory & Allergy
+  'OMEP-20': { code: 'OMEP-20', name: 'Omeprazole 20mg capsules', class: 'PPI', generic: 'Omeprazole' },
+  'PANTO-40': { code: 'PANTO-40', name: 'Pantoprazole 40mg tablets', class: 'PPI', generic: 'Pantoprazole' },
+  'SALB-100': { code: 'SALB-100', name: 'Salbutamol 100mcg Inhaler', class: 'BRONCHODILATOR', generic: 'Salbutamol' },
+  'CETI-10': { code: 'CETI-10', name: 'Cetirizine Hydrochloride 10mg tablets', class: 'ANTIHISTAMINE', generic: 'Cetirizine' },
 
   // Psychiatry
   'SERT-50': { code: 'SERT-50', name: 'Sertraline 50mg tablets', class: 'SSRI', generic: 'Sertraline' },
