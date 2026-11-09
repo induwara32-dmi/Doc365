@@ -64,6 +64,8 @@ model Patient {
   prescriptions  Prescription[]
   dispenses      MedicationDispense[]
   allergies      PatientAllergy[]
+  // Lab orders (FHIR ServiceRequest)
+  labOrders      LabOrder[]
 }
 
 // FHIR R4 administrative gender values, lowercase exactly as FHIR uses them,
@@ -162,6 +164,7 @@ model Facility {
   // Phase 6: prescriptions issued and dispenses fulfilled
   prescriptions  Prescription[]
   dispenses      MedicationDispense[]
+  labOrders      LabOrder[]
 }
 
 enum UserStatus {
@@ -199,6 +202,7 @@ model User {
   prescribedPrescriptions Prescription[]
   dispensedMedications    MedicationDispense[]
   recordedAllergies       PatientAllergy[]
+  orderedLabOrders        LabOrder[]
 }
 
 // Staff roles from DESIGN.md section 5. PATIENT is not here: patient access comes
@@ -334,6 +338,8 @@ model ClinicalRecord {
   // Phase 5: sensitive records (HIV, mental health, reproductive health) need patient PIN
   isSensitive            Boolean          @default(false)
   createdAt              DateTime         @default(now())
+
+  labOrders LabOrder[]
 
   @@unique([lineageId, version])
   @@unique([facilityId, bundleSha256])
@@ -500,3 +506,45 @@ model PatientAllergy {
   @@index([patientId, active])
   @@index([substance])
 }
+
+// ---------- Phase 7: Laboratory Orders & Service Requests ----------
+
+enum OrderPriority {
+  ROUTINE
+  URGENT
+  STAT
+}
+
+enum OrderStatus {
+  ORDERED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Lab test order (FHIR ServiceRequest). Issued by doctor, fulfilled by laboratory.
+model LabOrder {
+  id             String          @id @default(uuid()) @db.Uuid
+  orderCode      String          @unique
+  patientId      String          @db.Uuid
+  patient        Patient         @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  facilityId     String          @db.Uuid
+  facility       Facility        @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  doctorId       String          @db.Uuid
+  doctor         User            @relation(fields: [doctorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  testCode       String
+  testName       String
+  clinicalNotes  String?
+  priority       OrderPriority   @default(ROUTINE)
+  status         OrderStatus     @default(ORDERED)
+  fhir           Json
+  orderedAt      DateTime        @default(now())
+  completedAt    DateTime?
+  resultRecordId String?         @db.Uuid
+  resultRecord   ClinicalRecord? @relation(fields: [resultRecordId], references: [id], onDelete: SetNull, onUpdate: Restrict)
+
+  @@index([patientId, status])
+  @@index([facilityId])
+  @@index([doctorId])
+}
+

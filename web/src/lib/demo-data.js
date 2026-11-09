@@ -53,6 +53,16 @@ export const DEMO_USERS = [
     description: 'Scans prescription QR, verifies scoped payload, dispenses and tracks refills.',
   },
   {
+    role: 'LAB_STAFF',
+    roleLabel: 'Medical Lab Technologist (MLT)',
+    username: 'mlt.silva',
+    fullName: 'A. Silva (MLT)',
+    facility: 'Demo Lab Colombo',
+    facilityCode: 'demo-lab-colombo',
+    portalUrl: '/lab',
+    description: 'Scans card, views pending lab orders, enters structured test results, signs and uploads reports.',
+  },
+  {
     role: 'PATIENT',
     roleLabel: 'Citizen / Patient',
     username: 'kumari',
@@ -60,6 +70,49 @@ export const DEMO_USERS = [
     patientHealthId: 'DEMO-100001-7',
     portalUrl: '/patient',
     description: 'Views digital health card, reviews access ledger, hides records, blocks providers.',
+  },
+];
+
+export const DEMO_LAB_TESTS = [
+  {
+    code: '1558-6',
+    name: 'Fasting Plasma Glucose (FPG / FBS)',
+    shortName: 'Fasting Blood Sugar',
+    unit: 'mg/dL',
+    normalRange: '70 - 99 mg/dL',
+    defaultVal: 106,
+    category: 'Glycaemic',
+    description: 'Fasting blood sugar test to screen and monitor diabetes mellitus.',
+  },
+  {
+    code: '4548-4',
+    name: 'Hemoglobin A1c (HbA1c)',
+    shortName: 'HbA1c',
+    unit: '%',
+    normalRange: '< 5.7 %',
+    defaultVal: 6.8,
+    category: 'Glycaemic',
+    description: 'Glycated hemoglobin measuring average 3-month glycaemic control.',
+  },
+  {
+    code: '2093-3',
+    name: 'Total Cholesterol',
+    shortName: 'Cholesterol',
+    unit: 'mg/dL',
+    normalRange: '< 200 mg/dL',
+    defaultVal: 220,
+    category: 'Lipid Profile',
+    description: 'Total serum cholesterol assessment for cardiovascular risk.',
+  },
+  {
+    code: '2160-0',
+    name: 'Serum Creatinine',
+    shortName: 'Creatinine',
+    unit: 'mg/dL',
+    normalRange: '0.7 - 1.3 mg/dL',
+    defaultVal: 1.05,
+    category: 'Renal Function',
+    description: 'Kidney function marker evaluating renal filtration rate.',
   },
 ];
 

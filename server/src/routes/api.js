@@ -36,6 +36,12 @@ import {
   getActiveMedicationList,
   recordPatientAllergy,
 } from '../medications/prescription-service.js';
+import {
+  createLabOrder,
+  getPatientLabOrders,
+  getLabOrderById,
+  completeLabOrder,
+} from '../records/lab-order-service.js';
 
 const api = secureRouter();
 
@@ -121,6 +127,18 @@ const RecordAllergyBody = z.object({
   substance: z.string().trim().min(2).max(100),
   severity: z.enum(['MILD', 'MODERATE', 'SEVERE']).optional(),
   reaction: z.string().trim().max(200).optional(),
+});
+
+const CreateLabOrderBody = z.object({
+  patientHealthId: z.string().trim().min(5),
+  testCode: z.string().trim().min(1).max(50),
+  testName: z.string().trim().min(1).max(200),
+  priority: z.enum(['ROUTINE', 'URGENT', 'STAT']).optional(),
+  clinicalNotes: z.string().trim().max(1000).optional(),
+});
+
+const CompleteLabOrderBody = z.object({
+  resultRecordId: z.string().uuid().optional(),
 });
 
 async function findPatient(healthId) {
@@ -319,6 +337,35 @@ api.post('/patients/:healthId/allergies', 'allergy.manage', async (req, res) => 
   const body = parseBody(RecordAllergyBody, req.body);
   const allergy = await recordPatientAllergy(req.params.healthId, body, { actor: req.actor });
   res.status(201).json({ allergy });
+});
+
+// ---------- Phase 7: Laboratory Orders (FHIR ServiceRequest) ----------
+
+// 1. Doctor creates new lab order
+api.post('/lab-orders', 'lab_order.create', async (req, res) => {
+  const body = parseBody(CreateLabOrderBody, req.body);
+  const result = await createLabOrder(body, { actor: req.actor });
+  res.status(201).json(result);
+});
+
+// 2. View patient's lab orders (Doctor, MLT, Patient)
+api.get('/patients/:healthId/lab-orders', 'lab_order.view', async (req, res) => {
+  const status = typeof req.query.status === 'string' ? req.query.status.toUpperCase() : undefined;
+  const result = await getPatientLabOrders(req.params.healthId, { status }, { actor: req.actor });
+  res.json(result);
+});
+
+// 3. View single lab order
+api.get('/lab-orders/:id', 'lab_order.view', async (req, res) => {
+  const result = await getLabOrderById(req.params.id, { actor: req.actor });
+  res.json(result);
+});
+
+// 4. Lab completes order and links result record
+api.post('/lab-orders/:id/complete', 'lab_order.manage', async (req, res) => {
+  const body = parseBody(CompleteLabOrderBody, req.body);
+  const result = await completeLabOrder(req.params.id, body, { actor: req.actor });
+  res.json(result);
 });
 
 export const apiRouter = api.router;

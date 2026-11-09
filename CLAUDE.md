@@ -1,13 +1,14 @@
 # Doc365: Trusted Health Records for Sri Lanka (learning prototype)
 
 ## Current status (updated 2026-11-09)
-- Phases 0-7 DONE. `npm test` (in `server/`): 131 tests, all passing. Next.js build (`web/`): passing.
+- Phases 0-7 DONE. `npm test` (in `server/`): 134 tests, all passing. Next.js build (`web/`): passing.
 - Phase 7 complete:
   - Next.js 14 App Router + Tailwind CSS web portal suite implemented in `web/`.
-  - Doctor Portal (`/doctor`): Three-Keys card tap simulation (90-day grant), Ed25519 cryptographic trust badges (`VERIFIED`), sensitive PIN unlock gate, e-prescription authoring with live DDI/Allergy safety override modal, and emergency break-glass override.
-  - Pharmacy Portal (`/pharmacy`): Scoped prescription QR scanner, strict zero full-record leakage guarantee, dispensing execution with refill management, and 409 Conflict re-use prevention.
-  - Patient Self-Sovereignty Portal (`/patient`): Photorealistic Sri Lanka Digital Health Card with live QR code, "Who Viewed My Record" access ledger timeline, document masking (Hide/Unhide), provider blocking, and confidential PIN setup.
-  - Portal Hub (`/`): Central landing page with one-click quick login buttons for all pre-seeded test personas (Kumari, Dr. Perera, Pharmacist Fernando).
+  - Doctor Portal (`/doctor`): Three-Keys card tap simulation (90-day grant), Ed25519 cryptographic trust badges (`VERIFIED`), sensitive PIN unlock gate, e-prescription authoring with live DDI/Allergy safety override modal, emergency break-glass override, and "Order Diagnostic Tests" pad generating FHIR ServiceRequests.
+  - Laboratory Portal (`/lab`): Dedicated MLT workspace for `mlt.silva` at `Demo Lab Colombo`. Allows health card / Health ID lookup of pending lab orders, structured result entry (FPG, HbA1c, Cholesterol, Creatinine), Ed25519 facility signing, and report upload completing the order.
+  - Pharmacy Portal (`/pharmacy`): Scoped prescription QR scanner, strict zero full-record leakage guarantee, dispensing execution with refill management, prominent Red "ISSUED / DISPENSED" badge, and 409 Conflict re-use prevention.
+  - Patient Self-Sovereignty Portal (`/patient`): Photorealistic Sri Lanka Digital Health Card with live QR code, "Health Trends & Biomarker Analytics" parsing historical Observations (FBS, HbA1c, Cholesterol, Creatinine) with SVG trend charts and status indicators (Normal / Elevated / High), "Who Viewed My Record" access ledger timeline, document masking (Hide/Unhide), provider blocking, and confidential PIN setup.
+  - Portal Hub (`/`): Central landing page with one-click quick login buttons for all pre-seeded test personas (Kumari, Dr. Perera, MLT Silva, Pharmacist Fernando).
 
 A health card for every citizen. A doctor scans the card and sees the patient's
 complete, verified history from every hospital and lab. Inspired by Germany (eGK + ePA),

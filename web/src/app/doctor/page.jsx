@@ -16,19 +16,22 @@ import {
   User,
   PlusCircle,
   FileText,
+  FlaskConical,
 } from 'lucide-react';
 import {
   scanCard,
   breakGlassAccess,
   getPatientRecords,
   createPrescription,
+  createLabOrder,
+  getPatientLabOrders,
   getEmergencySummary,
   getActiveMedications,
   recordAllergy,
   getCurrentUser,
   login,
 } from '../../lib/api';
-import { DEMO_PATIENTS, DEMO_DRUGS } from '../../lib/demo-data';
+import { DEMO_PATIENTS, DEMO_DRUGS, DEMO_LAB_TESTS } from '../../lib/demo-data';
 import DdiSafetyModal from '../../components/DdiSafetyModal';
 import BreakGlassModal from '../../components/BreakGlassModal';
 import SensitiveGateModal from '../../components/SensitiveGateModal';
@@ -63,6 +66,15 @@ export default function DoctorPortal() {
   const [daysSupply, setDaysSupply] = useState(DEMO_DRUGS[0].daysSupply);
   const [repeatsAllowed, setRepeatsAllowed] = useState(0);
   const [issuedPrescriptions, setIssuedPrescriptions] = useState([]);
+
+  // Active Action Pad Tab
+  const [activeActionPad, setActiveActionPad] = useState('prescribe');
+
+  // Lab Order Form State
+  const [labOrders, setLabOrders] = useState([]);
+  const [selectedLabTest, setSelectedLabTest] = useState(DEMO_LAB_TESTS[0]);
+  const [labPriority, setLabPriority] = useState('ROUTINE');
+  const [labNotes, setLabNotes] = useState('');
 
   // Auto-login as Dr. Perera if not authenticated
   useEffect(() => {
@@ -130,12 +142,13 @@ export default function DoctorPortal() {
     }
   };
 
-  // Load verified patient records, active meds & emergency summary
+  // Load verified patient records, active meds, emergency summary & lab orders
   const loadPatientClinicalData = async (healthId, pin = null) => {
-    const [recRes, medRes, emergRes] = await Promise.all([
+    const [recRes, medRes, emergRes, labRes] = await Promise.all([
       getPatientRecords(healthId, pin),
       getActiveMedications(healthId),
       getEmergencySummary(healthId),
+      getPatientLabOrders(healthId),
     ]);
 
     if (recRes.ok) {
@@ -146,6 +159,39 @@ export default function DoctorPortal() {
     }
     if (emergRes.ok) {
       setEmergencySummary(emergRes.data.emergencySummary);
+    }
+    if (labRes.ok) {
+      setLabOrders(labRes.data.orders || []);
+    }
+  };
+
+  // Submit Lab Test Order
+  const handleOrderLabTest = async () => {
+    if (!grant) {
+      setStatusMessage({ type: 'error', text: 'Three-Keys rule: Active consultation grant required before ordering lab tests.' });
+      return;
+    }
+
+    setLoading(true);
+    const res = await createLabOrder({
+      patientHealthId: selectedPatient.healthId,
+      testCode: selectedLabTest.code,
+      testName: selectedLabTest.name,
+      priority: labPriority,
+      clinicalNotes: labNotes,
+    });
+    setLoading(false);
+
+    if (res.ok) {
+      setStatusMessage({
+        type: 'success',
+        text: `Lab test ordered: ${res.data.order.orderCode} (${selectedLabTest.name})`,
+      });
+      setLabNotes('');
+      const updated = await getPatientLabOrders(selectedPatient.healthId);
+      if (updated.ok) setLabOrders(updated.data.orders || []);
+    } else {
+      setStatusMessage({ type: 'error', text: res.error.message });
     }
   };
 
@@ -346,97 +392,262 @@ export default function DoctorPortal() {
           )}
         </div>
 
-        {/* Center & Right Column: Clinical Timeline & E-Prescription Pad */}
+        {/* Center & Right Column: Clinical Action Pad & Timeline */}
         <div className="lg:col-span-2 space-y-6">
-          {/* E-Prescription Writer */}
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Pill className="w-5 h-5 text-emerald-600" />
-                <h2 className="text-sm font-bold text-slate-900">E-Prescription Pad & Safety Engine</h2>
-              </div>
-              <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                HL7 FHIR MedicationRequest
-              </span>
-            </div>
-
-            {/* Quick drug presets */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Select Drug to Prescribe</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {DEMO_DRUGS.map((d) => (
-                  <button
-                    key={d.code}
-                    type="button"
-                    onClick={() => handleDrugChange(d)}
-                    className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
-                      selectedDrug.code === d.code
-                        ? 'border-emerald-500 bg-emerald-50/60 font-bold text-emerald-950'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div className="truncate">{d.name.split(' ')[0]} {d.name.split(' ')[1]}</div>
-                    <div className="text-[10px] text-slate-500 font-normal">{d.tag}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Dosage & Parameters */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-3">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Dosage Instruction</label>
-                <input
-                  type="text"
-                  value={dosageInstruction}
-                  onChange={(e) => setDosageInstruction(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Quantity (Units)</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Days Supply</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={daysSupply}
-                  onChange={(e) => setDaysSupply(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Repeats / Refills</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={repeatsAllowed}
-                  onChange={(e) => setRepeatsAllowed(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-            </div>
-
+          {/* Action Pad Selector Tabs */}
+          <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-100 border border-slate-200">
             <button
-              onClick={() => handlePrescribe()}
-              disabled={loading || !grant}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              type="button"
+              onClick={() => setActiveActionPad('prescribe')}
+              className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                activeActionPad === 'prescribe'
+                  ? 'bg-white text-emerald-800 shadow-sm border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              <PlusCircle className="w-4 h-4" />
-              <span>Issue Electronic Prescription</span>
+              <Pill className="w-4 h-4 text-emerald-600" />
+              <span>E-Prescription Pad & DDI Safety</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveActionPad('lab')}
+              className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                activeActionPad === 'lab'
+                  ? 'bg-white text-amber-800 shadow-sm border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FlaskConical className="w-4 h-4 text-amber-600" />
+              <span>Order Diagnostic Tests (Lab Orders)</span>
             </button>
           </div>
+
+          {/* Action Pad 1: E-Prescription Writer */}
+          {activeActionPad === 'prescribe' && (
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Pill className="w-5 h-5 text-emerald-600" />
+                  <h2 className="text-sm font-bold text-slate-900">E-Prescription Pad & Safety Engine</h2>
+                </div>
+                <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  HL7 FHIR MedicationRequest
+                </span>
+              </div>
+
+              {/* Quick drug presets */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Select Drug to Prescribe</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {DEMO_DRUGS.map((d) => (
+                    <button
+                      key={d.code}
+                      type="button"
+                      onClick={() => handleDrugChange(d)}
+                      className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
+                        selectedDrug.code === d.code
+                          ? 'border-emerald-500 bg-emerald-50/60 font-bold text-emerald-950'
+                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <div className="truncate">{d.name.split(' ')[0]} {d.name.split(' ')[1]}</div>
+                      <div className="text-[10px] text-slate-500 font-normal">{d.tag}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dosage & Parameters */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-3">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Dosage Instruction</label>
+                  <input
+                    type="text"
+                    value={dosageInstruction}
+                    onChange={(e) => setDosageInstruction(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Quantity (Units)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Days Supply</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={daysSupply}
+                    onChange={(e) => setDaysSupply(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Repeats / Refills</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={repeatsAllowed}
+                    onChange={(e) => setRepeatsAllowed(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={() => handlePrescribe()}
+                disabled={loading || !grant}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Issue Electronic Prescription</span>
+              </button>
+            </div>
+          )}
+
+          {/* Action Pad 2: Lab Orders Pad */}
+          {activeActionPad === 'lab' && (
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <FlaskConical className="w-5 h-5 text-amber-600" />
+                  <h2 className="text-sm font-bold text-slate-900">Order Diagnostic Tests & Lab Investigations</h2>
+                </div>
+                <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+                  HL7 FHIR ServiceRequest
+                </span>
+              </div>
+
+              {/* Standard test presets */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Select Investigation Panel</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {DEMO_LAB_TESTS.map((t) => (
+                    <button
+                      key={t.code}
+                      type="button"
+                      onClick={() => setSelectedLabTest(t)}
+                      className={`p-3 rounded-xl border text-left text-xs transition-all ${
+                        selectedLabTest.code === t.code
+                          ? 'border-amber-500 bg-amber-50/60 font-bold text-amber-950 shadow-sm'
+                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <div className="font-bold">{t.name}</div>
+                      <div className="text-[11px] text-slate-500 font-normal mt-0.5">
+                        Normal: {t.normalRange} &bull; LOINC: {t.code}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Priority & Notes */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Priority</label>
+                  <select
+                    value={labPriority}
+                    onChange={(e) => setLabPriority(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                  >
+                    <option value="ROUTINE">ROUTINE (Standard)</option>
+                    <option value="URGENT">URGENT (Priority)</option>
+                    <option value="STAT">STAT (Immediate Emergency)</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Clinical Indication / Notes</label>
+                  <input
+                    type="text"
+                    value={labNotes}
+                    onChange={(e) => setLabNotes(e.target.value)}
+                    placeholder="e.g. Check fasting glucose level following metformin therapy"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleOrderLabTest}
+                disabled={loading || !grant}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Issue Lab Order (FHIR ServiceRequest)</span>
+              </button>
+            </div>
+          )}
+
+          {/* Active Lab Orders Pipeline */}
+          {labOrders.length > 0 && (
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <FlaskConical className="w-4 h-4 text-amber-600" />
+                  <span>Diagnostic Lab Orders Pipeline</span>
+                </span>
+                <span className="text-[11px] font-semibold text-slate-500">{labOrders.length} Orders</span>
+              </h3>
+
+              <div className="space-y-2">
+                {labOrders.map((o) => {
+                  const isCompleted = o.status === 'COMPLETED';
+                  return (
+                    <div
+                      key={o.id}
+                      className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                        isCompleted
+                          ? 'border-emerald-200 bg-emerald-50/30'
+                          : 'border-amber-200 bg-amber-50/30'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900">{o.testName}</span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                              isCompleted
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {o.status}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono mt-0.5">
+                          Order Code: {o.orderCode} &bull; Priority: {o.priority} &bull; Ordered: {new Date(o.orderedAt).toLocaleDateString()}
+                        </div>
+                        {o.clinicalNotes && (
+                          <div className="text-[11px] text-slate-600 italic mt-0.5">
+                            Notes: &ldquo;{o.clinicalNotes}&rdquo;
+                          </div>
+                        )}
+                      </div>
+
+                      {isCompleted && (
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-800 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-sm self-start sm:self-center">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                          <span>Verified Results in Timeline</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Newly Issued Prescriptions */}
           {issuedPrescriptions.length > 0 && (
@@ -514,6 +725,26 @@ export default function DoctorPortal() {
                       <span>Facility: {r.facilityName || 'Facility'}</span>
                       <span>Recorded: {new Date(r.createdAt).toLocaleDateString()}</span>
                     </div>
+
+                    {/* Structured Observation Display */}
+                    {r.bundle?.entry?.filter((e) => e.resource?.resourceType === 'Observation').map((obs) => {
+                      const res = obs.resource;
+                      return (
+                        <div key={res.id || Math.random()} className="mt-2 p-2.5 rounded-lg bg-white border border-slate-200/80 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-900">{res.code?.text || res.code?.coding?.[0]?.display || 'Diagnostic Observation'}</span>
+                            <span className="font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                              {res.valueQuantity?.value} {res.valueQuantity?.unit}
+                            </span>
+                          </div>
+                          {res.referenceRange?.[0]?.text && (
+                            <div className="text-[11px] text-slate-500 mt-0.5">
+                              Reference: {res.referenceRange[0].text}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
               </div>

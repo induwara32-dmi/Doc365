@@ -62,6 +62,11 @@ export const PERMISSIONS = {
   'medication.view_active': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS, PHARMACIST: ALWAYS, [PATIENT]: ALWAYS },
   'allergy.manage': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS, [PATIENT]: ALWAYS },
 
+  // Phase 7: Laboratory Orders (FHIR ServiceRequest)
+  'lab_order.create': { DOCTOR: ALWAYS },
+  'lab_order.view': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS, LAB_STAFF: ALWAYS, [PATIENT]: ALWAYS },
+  'lab_order.manage': { LAB_STAFF: ALWAYS, DOCTOR: ALWAYS },
+
   // Phase 5: Access Engine and Consent Controls
   'access.scan': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS },
   'access.break_glass': { DOCTOR: ALWAYS, HOSPITAL_STAFF: ALWAYS },

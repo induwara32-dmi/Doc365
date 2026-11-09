@@ -537,7 +537,7 @@ test('the database refuses DELETE and TRUNCATE on ClinicalRecord', async () => {
     isAppendOnly,
   );
   await assert.rejects(
-    prisma.$executeRaw`TRUNCATE TABLE "ClinicalRecord"`,
+    prisma.$executeRaw`TRUNCATE TABLE "ClinicalRecord" CASCADE`,
     isAppendOnly,
   );
 });

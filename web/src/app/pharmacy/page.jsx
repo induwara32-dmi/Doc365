@@ -220,9 +220,9 @@ export default function PharmacyPortal() {
                   {/* Status Badge */}
                   <div>
                     {scannedData.prescription.dispenseState === 'DISPENSED' ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
-                        <AlertOctagon className="w-3.5 h-3.5" />
-                        FULLY DISPENSED (CANNOT BE REUSED)
+                      <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-black tracking-wide bg-red-600 text-white shadow-md shadow-red-600/20">
+                        <AlertOctagon className="w-4 h-4" />
+                        ISSUED / DISPENSED
                       </span>
                     ) : scannedData.prescription.dispenseState === 'PARTIALLY_DISPENSED' ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
@@ -340,13 +340,20 @@ export default function PharmacyPortal() {
                   </button>
                 </div>
               ) : (
-                <div className="p-6 rounded-2xl bg-red-50 border border-red-200 text-red-950 flex items-center gap-3">
-                  <AlertOctagon className="w-8 h-8 text-red-600 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-bold text-sm">Prescription Fully Dispensed</h4>
-                    <p className="text-xs text-red-800 mt-0.5">
-                      All repeats have been consumed. Further dispensing of this QR code is blocked by the Doc365 State Machine.
-                    </p>
+                <div className="p-6 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 text-white shadow-lg flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
+                      <AlertOctagon className="w-7 h-7 text-white" />
+                    </div>
+                    <div>
+                      <div className="inline-block px-2.5 py-0.5 rounded-full bg-white text-red-700 text-[10px] font-black uppercase tracking-wider mb-1">
+                        ISSUED / DISPENSED
+                      </div>
+                      <h4 className="font-bold text-base leading-tight">Prescription Already Issued</h4>
+                      <p className="text-xs text-red-100 mt-1">
+                        All authorized repeats have been dispensed. Re-dispensing of this QR token is cryptographically blocked across all nationwide pharmacies.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

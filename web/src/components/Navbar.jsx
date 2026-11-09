@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Shield, Stethoscope, Pill, User, LogOut, HeartPulse } from 'lucide-react';
+import { Shield, Stethoscope, Pill, FlaskConical, User, LogOut, HeartPulse } from 'lucide-react';
 import { getCurrentUser, clearSession } from '../lib/api';
 import { useEffect, useState } from 'react';
 
@@ -23,7 +23,8 @@ export default function Navbar() {
 
   const navLinks = [
     { href: '/doctor', label: 'Doctor Portal', icon: Stethoscope },
-    { href: '/pharmacy', label: 'Pharmacy Portal', icon: Pill },
+    { href: '/lab', label: 'Laboratory', icon: FlaskConical },
+    { href: '/pharmacy', label: 'Pharmacy', icon: Pill },
     { href: '/patient', label: 'Patient Portal', icon: User },
   ];
 

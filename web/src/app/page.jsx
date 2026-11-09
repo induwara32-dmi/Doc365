@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Stethoscope, Pill, User, ShieldCheck, HeartPulse, ArrowRight, Lock, Key, AlertTriangle } from 'lucide-react';
+import { Stethoscope, Pill, FlaskConical, User, ShieldCheck, HeartPulse, ArrowRight, Lock, Key, AlertTriangle } from 'lucide-react';
 import { DEMO_USERS, DEMO_PATIENTS } from '../lib/demo-data';
 import { login, setSession } from '../lib/api';
 
@@ -86,16 +86,29 @@ export default function HomePage() {
       <div>
         <div className="mb-6">
           <h2 className="text-xl font-bold tracking-tight text-slate-900">Explore Role-Based Portals</h2>
-          <p className="text-xs text-slate-500">Launch any of the three authenticated interfaces using pre-seeded test personas.</p>
+          <p className="text-xs text-slate-500">Launch any of the four authenticated interfaces using pre-seeded test personas.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {DEMO_USERS.map((persona) => {
             const isDoctor = persona.role === 'DOCTOR';
             const isPharm = persona.role === 'PHARMACIST';
-            const Icon = isDoctor ? Stethoscope : isPharm ? Pill : User;
-            const accentBg = isDoctor ? 'from-emerald-50 to-teal-50/30' : isPharm ? 'from-sky-50 to-blue-50/30' : 'from-purple-50 to-indigo-50/30';
-            const buttonColor = isDoctor ? 'bg-emerald-600 hover:bg-emerald-700' : isPharm ? 'bg-sky-600 hover:bg-sky-700' : 'bg-purple-600 hover:bg-purple-700';
+            const isLab = persona.role === 'LAB_STAFF';
+            const Icon = isDoctor ? Stethoscope : isPharm ? Pill : isLab ? FlaskConical : User;
+            const accentBg = isDoctor
+              ? 'from-emerald-50 to-teal-50/30'
+              : isPharm
+              ? 'from-sky-50 to-blue-50/30'
+              : isLab
+              ? 'from-amber-50 to-orange-50/30'
+              : 'from-purple-50 to-indigo-50/30';
+            const buttonColor = isDoctor
+              ? 'bg-emerald-600 hover:bg-emerald-700'
+              : isPharm
+              ? 'bg-sky-600 hover:bg-sky-700'
+              : isLab
+              ? 'bg-amber-600 hover:bg-amber-700'
+              : 'bg-purple-600 hover:bg-purple-700';
 
             return (
               <div

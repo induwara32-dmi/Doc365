@@ -176,3 +176,44 @@ export async function optInPatient(healthId) {
     method: 'POST',
   });
 }
+
+// Laboratory & Orders API
+export async function createLabOrder(orderData) {
+  return apiRequest('/lab-orders', {
+    method: 'POST',
+    body: orderData,
+  });
+}
+
+export async function getPatientLabOrders(healthId, status = null) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiRequest(`/patients/${healthId}/lab-orders${query}`);
+}
+
+export async function completeLabOrder(orderId, { resultRecordId } = {}) {
+  return apiRequest(`/lab-orders/${orderId}/complete`, {
+    method: 'POST',
+    body: { resultRecordId },
+  });
+}
+
+export async function uploadRecord({ bundle, provenance = null, isSensitive = false }) {
+  return apiRequest('/records', {
+    method: 'POST',
+    body: { bundle, provenance, isSensitive },
+  });
+}
+
+// Client-side facility signing helper (Demo Lab simulation)
+export async function signBundleClient(bundle, labReference = 'Organization/demo-lab-colombo') {
+  try {
+    const res = await fetch('/client-api/lab/sign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bundle, labReference }),
+    });
+    return await res.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
