@@ -17,6 +17,7 @@ import {
   Pill,
   FlaskConical,
   CreditCard,
+  Building2,
 } from 'lucide-react';
 import { login } from '../../lib/api';
 
@@ -37,6 +38,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showDemoHelp, setShowDemoHelp] = useState(false);
+  const [membershipOptions, setMembershipOptions] = useState(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -44,6 +46,15 @@ export default function LoginPage() {
       setFrom(params.get('from') || '');
     }
   }, []);
+
+  const completeSuccessfulLogin = (role) => {
+    const targetPortal = ROLE_PORTALS[role] || '/';
+    if (from && from.startsWith(targetPortal)) {
+      router.push(from);
+    } else {
+      router.push(targetPortal);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,6 +65,7 @@ export default function LoginPage() {
 
     setLoading(true);
     setError('');
+    setMembershipOptions(null);
 
     const res = await login({
       username: identifier.trim(),
@@ -63,18 +75,34 @@ export default function LoginPage() {
     setLoading(false);
 
     if (res.ok && res.data?.session) {
-      const userRole = res.data.session.role;
-      const targetPortal = ROLE_PORTALS[userRole] || '/';
-
-      // If redirected from a permitted portal, go there; otherwise go to user's assigned portal
-      if (from && from.startsWith(targetPortal)) {
-        router.push(from);
-      } else {
-        router.push(targetPortal);
-      }
+      completeSuccessfulLogin(res.data.session.role);
+    } else if (res.error?.code === 'CHOOSE_MEMBERSHIP') {
+      // User has multiple clinical memberships (e.g. physician practicing at multiple hospitals)
+      const opts = res.error?.details?.options || res.data?.error?.details?.options || [];
+      setMembershipOptions(opts);
     } else {
       // Security best practice: avoid user enumeration
       setError('Invalid username, Health ID, or password. Please try again.');
+    }
+  };
+
+  const handleSelectMembership = async (opt) => {
+    setLoading(true);
+    setError('');
+
+    const res = await login({
+      username: identifier.trim(),
+      password,
+      membershipId: opt.membershipId,
+      asPatient: opt.asPatient,
+    });
+
+    setLoading(false);
+
+    if (res.ok && res.data?.session) {
+      completeSuccessfulLogin(res.data.session.role);
+    } else {
+      setError(res.error?.message || 'Failed to select facility.');
     }
   };
 
@@ -110,82 +138,140 @@ export default function LoginPage() {
 
         {/* Unified Login Card */}
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-card p-7 space-y-5">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Identifier Field */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-700">
-                Username or Health ID
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="e.g. dr.perera or DEMO-100001-7"
-                  autoComplete="username"
-                  required
-                  className="w-full pl-9 pr-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all font-mono"
-                />
-                <User className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+          {membershipOptions ? (
+            <div className="space-y-4">
+              <div className="border-b border-slate-100 pb-3">
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 text-[10px] font-semibold uppercase tracking-wider mb-1">
+                  <Building2 className="w-3 h-3 text-teal-600" />
+                  <span>Clinical Facility Selection</span>
+                </div>
+                <h2 className="text-base font-semibold text-slate-900">Select Working Hospital</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Your practitioner account holds active appointments at multiple facilities. Choose your active site for this consultation session:
+                </p>
               </div>
-              <p className="text-[11px] text-slate-400">
-                Staff: use your facility username. Citizens: enter your Health ID or username.
-              </p>
-            </div>
 
-            {/* Password Field */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-700">
-                Password / Account PIN
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  autoComplete="current-password"
-                  required
-                  className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all font-mono"
-                />
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+              <div className="space-y-2">
+                {membershipOptions.map((opt, idx) => (
+                  <button
+                    key={opt.membershipId || idx}
+                    type="button"
+                    onClick={() => handleSelectMembership(opt)}
+                    disabled={loading}
+                    className="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-teal-500 hover:ring-2 hover:ring-teal-100 transition-all text-left flex items-center justify-between group shadow-xs disabled:opacity-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 group-hover:bg-teal-600 group-hover:text-white transition-colors">
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-slate-900">
+                          {opt.facility || opt.label || 'My Own Health Record'}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          {opt.jobTitle ? `${opt.jobTitle} ` : ''}{opt.role || 'Patient'}
+                          {opt.facilityType ? ` • ${opt.facilityType}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all" />
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-2 flex items-center justify-between text-xs">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                  onClick={() => {
+                    setMembershipOptions(null);
+                    setError('');
+                  }}
+                  className="text-slate-500 hover:text-slate-800 font-medium"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  &larr; Switch Account
                 </button>
               </div>
             </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Identifier Field */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Username or Health ID
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="e.g. dr.perera or DEMO-100001-7"
+                    autoComplete="username"
+                    required
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all font-mono"
+                  />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Staff: use your facility username. Citizens: enter your Health ID or username.
+                </p>
+              </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
-            >
-              {loading ? (
-                <span>Verifying credentials...</span>
-              ) : (
-                <>
-                  <span>Sign In</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </>
-              )}
-            </button>
-          </form>
+              {/* Password Field */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Password / Account PIN
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    autoComplete="current-password"
+                    required
+                    className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all font-mono"
+                  />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 px-4 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
+              >
+                {loading ? (
+                  <span>Verifying credentials...</span>
+                ) : (
+                  <>
+                    <span>Sign In</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
 
           {/* Citizen Self-Registration Link */}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>New patient or citizen?</span>
-            <Link href="/register" className="font-semibold text-teal-700 hover:text-teal-800">
-              Register Health Card
-            </Link>
-          </div>
+          {!membershipOptions && (
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>New patient or citizen?</span>
+              <Link href="/register" className="font-semibold text-teal-700 hover:text-teal-800">
+                Register Health Card
+              </Link>
+            </div>
+          )}
         </div>
 
-        {/* Demo Credentials Reference Box (Collapsible for test verification) */}
+        {/* Demo Credentials Reference Box */}
         <div className="rounded-xl border border-slate-200 bg-white/70 p-4 text-xs text-slate-600 shadow-xs">
           <button
             type="button"
@@ -209,7 +295,7 @@ export default function LoginPage() {
               <div className="grid grid-cols-2 gap-2 pt-1 font-mono">
                 <div className="p-2 rounded-lg bg-slate-50 border border-slate-200/60">
                   <div className="font-sans font-semibold text-slate-800 text-[10px] flex items-center gap-1">
-                    <Stethoscope className="w-3 h-3 text-teal-600" /> Doctor
+                    <Stethoscope className="w-3 h-3 text-teal-600" /> Doctor (Dual Hospital)
                   </div>
                   <div className="text-slate-700 mt-0.5">dr.perera</div>
                 </div>
