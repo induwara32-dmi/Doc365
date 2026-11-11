@@ -110,6 +110,23 @@ test('a person with two jobs (and a patient record) must choose, then gets that 
   assert.equal(meAsPatient.body.session.role, 'PATIENT');
 });
 
+test('patient can log in using their Health ID in place of username', async () => {
+  const p = await createTestPatient({ familyName: uniqueName() });
+  await createTestUser({
+    fullName: 'Health ID Login Patient',
+    patientId: p.id,
+  });
+
+  const res = await request(app)
+    .post('/api/auth/login')
+    .send({ username: p.healthId, password: TEST_PASSWORD });
+
+  assert.equal(res.status, 200);
+  assert.ok(res.body.token);
+  assert.equal(res.body.session.role, 'PATIENT');
+  assert.equal(res.body.session.ownPatientId, p.id);
+});
+
 test('wrong password and unknown username give the same answer', async () => {
   const wrongPassword = await request(app)
     .post('/api/auth/login')

@@ -119,21 +119,12 @@ export default function DoctorPortal() {
   const [labPriority, setLabPriority] = useState('ROUTINE');
   const [labNotes, setLabNotes] = useState('');
 
-  // Auto-login as Dr. Perera if not authenticated
+  // Load authenticated doctor session
   useEffect(() => {
-    async function initDoctor() {
-      let user = getCurrentUser();
-      if (!user || user.role !== 'DOCTOR') {
-        const password = process.env.NEXT_PUBLIC_SEED_PASSWORD || 'hSk9SQ-yNLI3PBxm';
-        const res = await login({ username: 'dr.perera', password });
-        if (res.ok) {
-          setCurrentUser(res.data.session);
-        }
-      } else {
-        setCurrentUser(user);
-      }
+    const user = getCurrentUser();
+    if (user && user.role === 'DOCTOR') {
+      setCurrentUser(user);
     }
-    initDoctor();
   }, []);
 
   // Load facilities for hospital switcher

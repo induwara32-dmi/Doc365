@@ -177,23 +177,13 @@ export default function PatientPortal() {
   const [blockReason, setBlockReason] = useState('Personal choice / prefer local clinic');
   const [isOptedOut, setIsOptedOut] = useState(false);
 
-  // Auto-login as Kumari
+  // Load authenticated patient session
   useEffect(() => {
-    async function initPatient() {
-      let user = getCurrentUser();
-      if (!user || user.role !== 'PATIENT') {
-        const password = process.env.NEXT_PUBLIC_SEED_PASSWORD || 'hSk9SQ-yNLI3PBxm';
-        const res = await login({ username: 'kumari', password, asPatient: true });
-        if (res.ok) {
-          setCurrentUser(res.data.session);
-          loadPatientData(res.data.session.ownPatientId || 'DEMO-100001-7');
-        }
-      } else {
-        setCurrentUser(user);
-        loadPatientData(user.patientId || user.healthId || user.ownPatientId || 'DEMO-100001-7');
-      }
+    const user = getCurrentUser();
+    if (user && user.role === 'PATIENT') {
+      setCurrentUser(user);
+      loadPatientData(user.ownPatientId || user.patientId || user.healthId || 'DEMO-100001-7');
     }
-    initPatient();
   }, []);
 
   const loadPatientData = async (healthId = activeHealthId) => {

@@ -33,12 +33,32 @@ function loginOptions(user) {
 
 // Returns { token, expiresInSeconds, session } or throws AppError.
 export async function login({ username, password, membershipId, asPatient }) {
-  const user = await prisma.user.findUnique({
-    where: { username: normalizeUsername(username) },
-    include: {
-      memberships: { where: { status: 'ACTIVE' }, include: { facility: true }, orderBy: { createdAt: 'asc' } },
-    },
-  });
+  const trimmed = typeof username === 'string' ? username.trim() : '';
+  const isHealthId = /^DEMO-/i.test(trimmed);
+
+  let user = null;
+  if (isHealthId) {
+    const patient = await prisma.patient.findFirst({
+      where: { healthId: { equals: trimmed, mode: 'insensitive' } },
+      include: {
+        user: {
+          include: {
+            memberships: { where: { status: 'ACTIVE' }, include: { facility: true }, orderBy: { createdAt: 'asc' } },
+          },
+        },
+      },
+    });
+    user = patient?.user ?? null;
+  }
+
+  if (!user) {
+    user = await prisma.user.findUnique({
+      where: { username: normalizeUsername(username) },
+      include: {
+        memberships: { where: { status: 'ACTIVE' }, include: { facility: true }, orderBy: { createdAt: 'asc' } },
+      },
+    });
+  }
 
   // Always run bcrypt, even for an unknown username (same timing)
   const passwordOk = await verifyPassword(password, user?.passwordHash ?? null);
@@ -64,7 +84,7 @@ export async function login({ username, password, membershipId, asPatient }) {
   }
 
   let actor;
-  if (asPatient) {
+  if (asPatient || (isHealthId && user.patientId)) {
     if (!user.patientId) throw new AppError('INVALID_CHOICE', 'This account has no patient record');
     actor = actorForPatient(user);
   } else if (membershipId) {

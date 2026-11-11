@@ -19,12 +19,22 @@ export function setSession(token, user) {
   if (typeof window === 'undefined') return;
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+
+  // Set cookies for Next.js Edge Middleware route guards (15m expiration matching JWT)
+  const maxAge = 15 * 60;
+  const role = user?.role || '';
+  document.cookie = `doc365_token=${encodeURIComponent(token)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+  document.cookie = `doc365_role=${encodeURIComponent(role)}; path=/; max-age=${maxAge}; SameSite=Lax`;
 }
 
 export function clearSession() {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+
+  // Clear route guard cookies
+  document.cookie = 'doc365_token=; path=/; max-age=0; SameSite=Lax';
+  document.cookie = 'doc365_role=; path=/; max-age=0; SameSite=Lax';
 }
 
 export async function apiRequest(endpoint, { method = 'GET', body, headers = {}, token = null } = {}) {

@@ -28,21 +28,12 @@ export default function PharmacyPortal() {
   const [notes, setNotes] = useState('Standard foil pack dispensed');
   const [dispenseResult, setDispenseResult] = useState(null);
 
-  // Auto-login as Pharmacist Fernando
+  // Load authenticated pharmacist session
   useEffect(() => {
-    async function initPharmacist() {
-      let user = getCurrentUser();
-      if (!user || user.role !== 'PHARMACIST') {
-        const password = process.env.NEXT_PUBLIC_SEED_PASSWORD || 'hSk9SQ-yNLI3PBxm';
-        const res = await login({ username: 'pharm.fernando', password });
-        if (res.ok) {
-          setCurrentUser(res.data.session);
-        }
-      } else {
-        setCurrentUser(user);
-      }
+    const user = getCurrentUser();
+    if (user && user.role === 'PHARMACIST') {
+      setCurrentUser(user);
     }
-    initPharmacist();
   }, []);
 
   // Handle Scan QR

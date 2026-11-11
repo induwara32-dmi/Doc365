@@ -69,21 +69,12 @@ export default function LabPortal() {
   const [technicianNotes, setTechnicianNotes] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  // Auto-login as MLT Silva if not authenticated
+  // Load authenticated MLT lab session
   useEffect(() => {
-    async function initMlt() {
-      let user = getCurrentUser();
-      if (!user || user.role !== 'LAB_STAFF') {
-        const password = process.env.NEXT_PUBLIC_SEED_PASSWORD || 'hSk9SQ-yNLI3PBxm';
-        const res = await login({ username: 'mlt.silva', password });
-        if (res.ok) {
-          setCurrentUser(res.data.session);
-        }
-      } else {
-        setCurrentUser(user);
-      }
+    const user = getCurrentUser();
+    if (user && user.role === 'LAB_STAFF') {
+      setCurrentUser(user);
     }
-    initMlt();
   }, []);
 
   // Global Ctrl+K / Cmd+K shortcut to focus card scanner
