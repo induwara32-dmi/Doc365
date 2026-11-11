@@ -16,8 +16,6 @@ import {
   CheckCircle2,
   Building2,
   FileText,
-  ToggleLeft,
-  ToggleRight,
   Activity,
   TrendingDown,
   TrendingUp,
@@ -288,32 +286,32 @@ export default function PatientPortal() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Session Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-card">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
-            <User className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-lg bg-teal-50 border border-teal-100 text-teal-700 flex items-center justify-center shadow-xs">
+            <User className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-slate-900">Citizen Self-Sovereignty & Consent Portal</h1>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+              <h1 className="text-base font-semibold text-slate-900">Citizen Self-Sovereignty & Consent Portal</h1>
+              <span className="text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200/80">
                 Self-Sovereign
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium">
-              Citizen: <span className="font-semibold text-slate-700">{citizenName}</span> ({activeHealthId})
+            <p className="text-xs text-slate-500 font-normal mt-0.5">
+              Citizen: <span className="font-medium text-slate-700">{citizenName}</span> ({activeHealthId})
             </p>
           </div>
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+        <div className="flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/60 text-xs font-medium">
           <button
             onClick={() => setActiveTab('card')}
             className={`px-3 py-1.5 rounded-lg transition-all ${
-              activeTab === 'card' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'card' ? 'bg-white text-teal-800 shadow-xs border border-slate-200/60 font-semibold' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Digital Card
@@ -321,7 +319,7 @@ export default function PatientPortal() {
           <button
             onClick={() => setActiveTab('trends')}
             className={`px-3 py-1.5 rounded-lg transition-all ${
-              activeTab === 'trends' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'trends' ? 'bg-white text-teal-800 shadow-xs border border-slate-200/60 font-semibold' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Health Trends & Analytics
@@ -329,7 +327,7 @@ export default function PatientPortal() {
           <button
             onClick={() => setActiveTab('ledger')}
             className={`px-3 py-1.5 rounded-lg transition-all ${
-              activeTab === 'ledger' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'ledger' ? 'bg-white text-teal-800 shadow-xs border border-slate-200/60 font-semibold' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Who Viewed Me
@@ -337,7 +335,7 @@ export default function PatientPortal() {
           <button
             onClick={() => setActiveTab('consent')}
             className={`px-3 py-1.5 rounded-lg transition-all ${
-              activeTab === 'consent' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'consent' ? 'bg-white text-teal-800 shadow-xs border border-slate-200/60 font-semibold' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Privacy Controls
@@ -349,14 +347,14 @@ export default function PatientPortal() {
         <div
           className={`p-4 rounded-xl text-xs flex items-center gap-2.5 font-medium border ${
             statusMessage.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-              : 'bg-red-50 border-red-200 text-red-900'
+              ? 'bg-emerald-50 border-emerald-200/80 text-emerald-900'
+              : 'bg-rose-50 border-rose-200/80 text-rose-900'
           }`}
         >
           {statusMessage.type === 'success' ? (
             <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
           ) : (
-            <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+            <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
           )}
           <span>{statusMessage.text}</span>
         </div>
@@ -377,19 +375,19 @@ export default function PatientPortal() {
             />
           </div>
 
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900">About Your Digital Health Card</h2>
-            <div className="space-y-3 text-xs text-slate-600 leading-relaxed">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-4">
+            <h2 className="text-base font-semibold text-slate-900">About Your Digital Health Card</h2>
+            <div className="space-y-3 text-xs text-slate-600 leading-relaxed font-normal">
               <p>
-                <strong>The Health Card is a Key, Not a Storage Device:</strong> No medical records are stored on your card or inside the QR code.
+                <strong className="text-slate-800">The Health Card is a Key, Not a Storage Device:</strong> No medical records are stored on your card or inside the QR code.
                 If lost, you can immediately block this card and have a replacement issued without losing any data.
               </p>
               <p>
-                <strong>Three-Keys Security:</strong> A doctor can only access your full records when your card is physically presented and scanned,
+                <strong className="text-slate-800">Three-Keys Security:</strong> A doctor can only access your full records when your card is physically presented and scanned,
                 establishing a time-limited 90-day clinical consultation grant.
               </p>
               <p>
-                <strong>Sensitive PIN Protection:</strong> Sensitive records (reproductive health, mental health) require your confidential PIN
+                <strong className="text-slate-800">Sensitive PIN Protection:</strong> Sensitive records (reproductive health, mental health) require your confidential PIN
                 in addition to your card.
               </p>
             </div>
@@ -399,18 +397,18 @@ export default function PatientPortal() {
 
       {/* Tab 2: "Who Viewed My Records" Access Ledger Timeline */}
       {activeTab === 'ledger' && (
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-6">
+        <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <History className="w-5 h-5 text-purple-600" />
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <History className="w-4 h-4 text-teal-600" />
                 <span>&quot;Who Viewed My Record&quot; Audit Ledger</span>
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 font-normal mt-0.5">
                 Estonian-style transparency: An append-only audit trail records every doctor, hospital, or pharmacy access.
               </p>
             </div>
-            <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
+            <span className="text-xs font-mono font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
               {ledger.length} Audit Events
             </span>
           </div>
@@ -428,31 +426,31 @@ export default function PatientPortal() {
                     key={index}
                     className={`p-4 rounded-xl border text-xs transition-all ${
                       isBreakGlass
-                        ? 'bg-red-50/70 border-red-200 text-red-950'
-                        : 'bg-slate-50/70 border-slate-200 text-slate-800'
+                        ? 'bg-rose-50/60 border-rose-200/80 text-rose-950'
+                        : 'bg-slate-50/60 border-slate-200/70 text-slate-800'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <div className="font-bold flex items-center gap-2">
-                        {isBreakGlass && <Siren className="w-4 h-4 text-red-600 animate-pulse" />}
+                      <div className="font-semibold flex items-center gap-2">
+                        {isBreakGlass && <Siren className="w-4 h-4 text-rose-600 animate-pulse" />}
                         <span className="capitalize">{item.action?.replace(/_/g, ' ')}</span>
                         {isBreakGlass && (
-                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-red-200 text-red-900">
+                          <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
                             Emergency Break-Glass
                           </span>
                         )}
                       </div>
-                      <div className="font-mono text-[11px] text-slate-500">
+                      <div className="font-mono text-[11px] text-slate-400">
                         {new Date(item.at).toLocaleString()}
                       </div>
                     </div>
 
-                    <div className="text-slate-600">
-                      Actor: <span className="font-semibold text-slate-800">{item.actorLabel}</span>
+                    <div className="text-slate-600 font-normal">
+                      Actor: <span className="font-medium text-slate-900">{item.actorLabel}</span>
                     </div>
 
                     {item.reason && (
-                      <div className="mt-2 p-2 rounded-lg bg-white/80 border border-slate-200/80 text-[11px] text-slate-700">
+                      <div className="mt-2 p-2 rounded-lg bg-white border border-slate-200/80 text-[11px] text-slate-700">
                         <strong>Reason provided:</strong> {item.reason}
                       </div>
                     )}
@@ -464,25 +462,25 @@ export default function PatientPortal() {
         </div>
       )}
 
-      {/* Tab: Health Trends & Lab Analytics */}
+      {/* Tab 3: Health Trends & Lab Analytics */}
       {activeTab === 'trends' && (() => {
         const trends = extractHealthTrends(records);
 
         return (
           <div className="space-y-6">
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-2">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-purple-600" />
-                  <h2 className="text-base font-bold text-slate-900">
+                  <Activity className="w-4 h-4 text-teal-600" />
+                  <h2 className="text-base font-semibold text-slate-900">
                     Longitudinal Health Trends & Biomarker Analytics
                   </h2>
                 </div>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                <span className="text-[10px] uppercase font-medium tracking-wide px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200/70">
                   FHIR Observation Timeline
                 </span>
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-500 font-normal leading-relaxed">
                 Visualizes key physiological markers and diagnostic laboratory values verified across hospitals and pathology labs.
                 Status indicators reflect standard Sri Lankan Ministry of Health and international clinical reference intervals.
               </p>
@@ -523,36 +521,38 @@ export default function PatientPortal() {
                   '',
                 );
 
+                const chartColor = isNormal ? '#0d9488' : isElevated ? '#d97706' : '#e11d48';
+
                 return (
                   <div
                     key={metric.key}
-                    className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-shadow"
+                    className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-4 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between">
                       <div>
                         <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
                           LOINC: {metric.code}
                         </span>
-                        <h3 className="font-bold text-sm text-slate-900">{metric.name}</h3>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
-                          Target Reference: <span className="font-semibold text-slate-700">{metric.normalRange}</span>
+                        <h3 className="font-semibold text-sm text-slate-900">{metric.name}</h3>
+                        <div className="text-[11px] text-slate-500 mt-0.5 font-normal">
+                          Target Reference: <span className="font-medium text-slate-700">{metric.normalRange}</span>
                         </div>
                       </div>
 
                       {/* Status Indicator Badge */}
                       <div>
                         {isNormal ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/80">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             NORMAL
                           </span>
                         ) : isElevated ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200/80">
                             <AlertTriangle className="w-3.5 h-3.5" />
                             ELEVATED
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200/80">
                             <AlertTriangle className="w-3.5 h-3.5" />
                             HIGH
                           </span>
@@ -563,29 +563,29 @@ export default function PatientPortal() {
                     {/* Main Reading & Direction */}
                     <div className="flex items-baseline justify-between pt-2 border-t border-slate-100">
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-2xl font-black text-slate-900">{latest.val}</span>
-                        <span className="text-xs font-semibold text-slate-500">{metric.unit}</span>
+                        <span className="text-2xl font-bold text-slate-900">{latest.val}</span>
+                        <span className="text-xs font-medium text-slate-500">{metric.unit}</span>
                       </div>
 
-                      <div className="flex items-center gap-1 text-xs font-semibold">
+                      <div className="flex items-center gap-1 text-xs font-medium">
                         {isDecreasing ? (
-                          <span className="text-emerald-600 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md">
+                          <span className="text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md">
                             <TrendingDown className="w-3.5 h-3.5" />
                             Trending Down (Improving)
                           </span>
                         ) : isIncreasing ? (
-                          <span className="text-amber-600 flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-md">
+                          <span className="text-amber-700 flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-md">
                             <TrendingUp className="w-3.5 h-3.5" />
                             Trending Up
                           </span>
                         ) : (
-                          <span className="text-slate-500">Stable</span>
+                          <span className="text-slate-400">Stable</span>
                         )}
                       </div>
                     </div>
 
                     {/* SVG Sparkline / Curve */}
-                    <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                    <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
                       <svg
                         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
                         className="w-full h-24 overflow-visible"
@@ -596,17 +596,16 @@ export default function PatientPortal() {
                           y1={svgHeight - padY - ((metric.normalMax - minV) / rangeV) * (svgHeight - 2 * padY)}
                           x2={svgWidth - padX}
                           y2={svgHeight - padY - ((metric.normalMax - minV) / rangeV) * (svgHeight - 2 * padY)}
-                          stroke="#10b981"
+                          stroke="#cbd5e1"
                           strokeDasharray="3 3"
                           strokeWidth="1"
-                          opacity="0.6"
                         />
 
                         {/* Trend line */}
                         <path
                           d={pathD}
                           fill="none"
-                          stroke={isNormal ? '#10b981' : isElevated ? '#f59e0b' : '#ef4444'}
+                          stroke={chartColor}
                           strokeWidth="2.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -618,9 +617,9 @@ export default function PatientPortal() {
                             <circle
                               cx={c.x}
                               cy={c.y}
-                              r="4.5"
+                              r="4"
                               fill="#ffffff"
-                              stroke={isNormal ? '#10b981' : isElevated ? '#f59e0b' : '#ef4444'}
+                              stroke={chartColor}
                               strokeWidth="2"
                             />
                             <text
@@ -628,7 +627,7 @@ export default function PatientPortal() {
                               y={c.y - 8}
                               textAnchor="middle"
                               fontSize="9"
-                              fontWeight="bold"
+                              fontWeight="600"
                               fill="#334155"
                             >
                               {c.val}
@@ -647,7 +646,7 @@ export default function PatientPortal() {
                       </svg>
                     </div>
 
-                    <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                    <div className="text-[10px] text-slate-400 flex items-center justify-between font-normal">
                       <span>Latest recorded: {latest.date}</span>
                       <span>Verified by: {latest.facility}</span>
                     </div>
@@ -659,17 +658,17 @@ export default function PatientPortal() {
         );
       })()}
 
-      {/* Tab 3: Privacy & Consent Controls */}
+      {/* Tab 4: Privacy & Consent Controls */}
       {activeTab === 'consent' && (
         <div className="space-y-6">
           {/* Document Hiding Controls */}
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <EyeOff className="w-5 h-5 text-purple-600" />
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <EyeOff className="w-4 h-4 text-teal-600" />
                 <span>Document Masking (Hide from Doctors)</span>
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 font-normal mt-0.5">
                 You can mask specific records from routine clinical view. Clinical records are append-only; hiding is tracked in a separate consent ledger.
               </p>
             </div>
@@ -681,31 +680,30 @@ export default function PatientPortal() {
                 {records.map((r) => (
                   <div
                     key={r.id}
-                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between text-xs"
+                    className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 flex items-center justify-between text-xs"
                   >
                     <div>
-                      <div className="font-bold text-slate-800">{r.mainResource}</div>
-                      <div className="text-[11px] text-slate-500">Facility: {r.facilityName || 'Lab / Clinic'} &bull; {new Date(r.createdAt).toLocaleDateString()}</div>
+                      <div className="font-semibold text-slate-800">{r.mainResource}</div>
+                      <div className="text-[11px] text-slate-500 font-normal">Facility: {r.facilityName || 'Lab / Clinic'} &bull; {new Date(r.createdAt).toLocaleDateString()}</div>
                     </div>
+                    
+                    {/* Headless-style Toggle Switch */}
                     <button
+                      type="button"
                       onClick={() => handleToggleHide(r)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        r.isHidden
-                          ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
+                        r.isHidden ? 'bg-amber-500' : 'bg-slate-200'
                       }`}
+                      role="switch"
+                      aria-checked={r.isHidden}
+                      title={r.isHidden ? 'Masked from Doctors' : 'Visible to Doctors'}
                     >
-                      {r.isHidden ? (
-                        <>
-                          <EyeOff className="w-3.5 h-3.5 text-amber-700" />
-                          <span>Hidden (Masked)</span>
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Visible to Doctors</span>
-                        </>
-                      )}
+                      <span className="sr-only">Toggle document masking</span>
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                          r.isHidden ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
                     </button>
                   </div>
                 ))}
@@ -714,12 +712,12 @@ export default function PatientPortal() {
           </div>
 
           {/* Sensitive Records PIN Setup */}
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <KeyRound className="w-5 h-5 text-purple-600" />
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-4">
+            <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-teal-600" />
               <span>Sensitive Records PIN Protection</span>
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 font-normal">
               Set or update your 4-6 digit confidential PIN used to elevate access for sensitive records (mental health, HIV, reproductive care).
             </p>
 
@@ -730,11 +728,11 @@ export default function PatientPortal() {
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
                 placeholder="New 4-6 Digit PIN"
-                className="text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 flex-1"
+                className="text-xs font-mono p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 flex-1 text-slate-900"
               />
               <button
                 type="submit"
-                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-colors"
+                className="px-4 py-2.5 rounded-lg text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-xs transition-colors"
               >
                 Save PIN
               </button>
@@ -742,22 +740,22 @@ export default function PatientPortal() {
           </div>
 
           {/* Provider Blocking */}
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Ban className="w-5 h-5 text-red-600" />
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-4">
+            <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <Ban className="w-4 h-4 text-rose-600" />
               <span>Provider Blocking</span>
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 font-normal">
               Block a specific facility or physician. Any existing 90-day consultation grants are immediately revoked.
             </p>
 
             <form onSubmit={handleBlockProvider} className="space-y-3 max-w-md">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Facility to Block</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Facility to Block</label>
                 <select
                   value={blockFacilityCode}
                   onChange={(e) => setBlockFacilityCode(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs p-2.5 rounded-lg bg-white border border-slate-200 text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 >
                   <option value="demo-private-hospital">Demo Private Hospital Kandy</option>
                   <option value="demo-general-hospital">Demo General Hospital Colombo</option>
@@ -766,18 +764,18 @@ export default function PatientPortal() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Reason (Optional)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Reason (Optional)</label>
                 <input
                   type="text"
                   value={blockReason}
                   onChange={(e) => setBlockReason(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs p-2.5 rounded-lg bg-white border border-slate-200 text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 />
               </div>
 
               <button
                 type="submit"
-                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors"
+                className="px-4 py-2.5 rounded-lg text-xs font-medium bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors"
               >
                 Block Provider & Revoke Grants
               </button>

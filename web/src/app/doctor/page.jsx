@@ -180,83 +180,80 @@ export default function DoctorPortal() {
     setDosageInstruction(drug.defaultDosage || '1 tablet once daily');
     setQuantity(drug.quantity || 30);
     setDaysSupply(drug.daysSupply || 30);
-    setRepeatsAllowed(drug.repeatsAllowed || 0);
+    setRepeatsAllowed(drug.repeatsAllowed !== undefined ? drug.repeatsAllowed : 0);
     setIsDrugDropdownOpen(false);
   };
 
-  // Add custom unlisted medication
-  const handleSelectCustomDrug = (name) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    const slug = trimmed.replace(/[^A-Za-z0-9]/g, '-').slice(0, 16).toUpperCase();
-    const customDrug = {
+  // Custom drug selection
+  const handleSelectCustomDrug = (customName) => {
+    const slug = customName.trim().toUpperCase().replace(/[^A-Z0-9]/g, '-').slice(0, 16);
+    const customObj = {
       code: `CUSTOM-${slug}`,
-      name: trimmed,
-      generic: trimmed,
+      name: customName.trim(),
+      generic: customName.trim(),
       class: 'OTHER',
       defaultDosage: '1 tablet once daily as directed',
       quantity: 30,
       daysSupply: 30,
       repeatsAllowed: 0,
-      tag: 'Custom Unlisted Drug',
+      tag: 'Custom',
     };
-    handleDrugChange(customDrug);
+    setSelectedDrug(customObj);
+    setDrugSearchQuery(customName.trim());
+    setDosageInstruction(customObj.defaultDosage);
+    setQuantity(customObj.quantity);
+    setDaysSupply(customObj.daysSupply);
+    setRepeatsAllowed(customObj.repeatsAllowed);
+    setIsDrugDropdownOpen(false);
   };
 
+  // Filtered drug presets based on search query
   const filteredDrugs = DEMO_DRUGS.filter((d) => {
-    if (!drugSearchQuery.trim()) return true;
+    if (!drugSearchQuery) return true;
     const q = drugSearchQuery.toLowerCase();
     return (
       d.name.toLowerCase().includes(q) ||
       (d.generic && d.generic.toLowerCase().includes(q)) ||
-      d.code.toLowerCase().includes(q) ||
-      (d.tag && d.tag.toLowerCase().includes(q)) ||
+      (d.code && d.code.toLowerCase().includes(q)) ||
       (d.class && d.class.toLowerCase().includes(q))
     );
   });
 
   const routineDrugs = DEMO_DRUGS.filter((d) => FREQUENT_ROUTINE_DRUGS.includes(d.code));
 
-  // Select preset and optionally tap card immediately
-  const handleSelectPreset = (preset, autoTap = true) => {
-    setSelectedPatient(preset.patient);
-    setCardSerial(preset.serial);
+  // Reset / End Consultation
+  const handleEndConsultation = () => {
     setGrant(null);
+    setIsBreakGlass(false);
     setRecords([]);
     setEmergencySummary(null);
     setActiveMedications([]);
+    setLabOrders([]);
+    setIssuedPrescriptions([]);
     setUnlockedPin(null);
-    setStatusMessage(null);
-    setIsPresetDropdownOpen(false);
+    setStatusMessage({
+      type: 'success',
+      text: `Consultation session for ${selectedPatient.shortName || selectedPatient.name} ended. Digital card released.`,
+    });
+  };
 
+  // Handle Preset Select
+  const handleSelectPreset = (preset, autoTap = false) => {
+    setSelectedPatient(preset.patient);
+    setCardSerial(preset.serial);
+    setIsPresetDropdownOpen(false);
     if (autoTap) {
       handleCardTap(preset.patient, preset.serial);
     }
   };
 
-  // End consultation session
-  const handleEndConsultation = () => {
-    setGrant(null);
-    setRecords([]);
-    setEmergencySummary(null);
-    setActiveMedications([]);
-    setUnlockedPin(null);
-    setStatusMessage({
-      type: 'success',
-      text: `Consultation concluded for ${selectedPatient.shortName || selectedPatient.name}. Card session closed.`,
-    });
-  };
-
-  // Three-Keys Card Tap Execution
-  const handleCardTap = async (targetPatient = selectedPatient, targetSerial = cardSerial) => {
-    const serialToScan = targetSerial || cardSerial;
-    const patientToScan = targetPatient || selectedPatient;
-
+  // Handle Card Tap / Scan (creates 90-day AccessGrant)
+  const handleCardTap = async (patientToScan = selectedPatient, serialToUse = cardSerial) => {
     setLoading(true);
     setStatusMessage(null);
     const res = await scanCard({
-      healthId: patientToScan.healthId,
-      cardSerial: serialToScan,
+      cardSerial: serialToUse,
+      patientHealthId: patientToScan.healthId,
     });
     setLoading(false);
 
@@ -265,7 +262,7 @@ export default function DoctorPortal() {
       setIsBreakGlass(false);
       setStatusMessage({
         type: 'success',
-        text: `90-day Consultation Grant established for ${patientToScan.shortName || patientToScan.name} (Expires: ${new Date(res.data.grant.expiresAt).toLocaleDateString()})`,
+        text: `NFC Card verified (${res.data.grant.cardSerial}). 90-day clinical consultation grant active.`,
       });
       loadPatientClinicalData(patientToScan.healthId);
     } else {
@@ -420,24 +417,22 @@ export default function DoctorPortal() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* 1. Header-Integrated Clinical Command & NFC Scanner Bar */}
-      <div className="rounded-3xl bg-slate-950 border border-slate-800 text-white p-5 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
-
+      <div className="rounded-2xl bg-white border border-slate-200/90 p-5 shadow-card relative overflow-hidden">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5 relative z-10">
           {/* Doctor Credentials & Hospital Switcher */}
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-600 via-teal-500 to-emerald-500 text-white flex items-center justify-center font-bold shadow-md shadow-cyan-500/20">
-              <Stethoscope className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 shadow-xs">
+              <Stethoscope className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg font-bold tracking-tight text-white">
+                <h1 className="text-base font-semibold tracking-tight text-slate-900">
                   {currentUser?.fullName || currentUser?.label || 'Dr. R. Perera'}
                 </h1>
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
+                <span className="text-[10px] font-mono font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-teal-50 border border-teal-200/80 text-teal-700">
                   {currentUser?.slmcNumber || 'SLMC #48291'}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                <span className="text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
                   {currentUser?.specialization || currentUser?.jobTitle || 'Consultant Physician'}
                 </span>
               </div>
@@ -447,21 +442,21 @@ export default function DoctorPortal() {
                 <button
                   type="button"
                   onClick={() => setIsFacilityDropdownOpen(!isFacilityDropdownOpen)}
-                  className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 transition-colors"
                 >
-                  <Building2 className="w-3.5 h-3.5 text-cyan-400" />
-                  <span className="font-semibold text-slate-300">
+                  <Building2 className="w-3.5 h-3.5 text-teal-600" />
+                  <span className="font-medium text-slate-700">
                     {activeFacility?.name || currentUser?.facilityName || 'Colombo National Hospital'}
                   </span>
-                  <span className="text-[10px] font-mono text-cyan-400">
-                    [{activeFacility?.code || currentUser?.facilityCode || 'CNH-01'}]
+                  <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200/60">
+                    {activeFacility?.code || currentUser?.facilityCode || 'CNH-01'}
                   </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </button>
 
                 {isFacilityDropdownOpen && (
-                  <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-2 z-50 text-xs">
-                    <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800">
+                  <div className="absolute left-0 mt-2 w-72 rounded-xl bg-white border border-slate-200 shadow-lg p-2 z-50 text-xs">
+                    <div className="px-3 py-1.5 text-[10px] uppercase font-semibold text-slate-400 border-b border-slate-100">
                       Switch Hospital Facility
                     </div>
                     <div className="py-1 space-y-1 max-h-56 overflow-y-auto">
@@ -477,17 +472,17 @@ export default function DoctorPortal() {
                               text: `Clinical facility switched to ${fac.name} (${fac.code})`,
                             });
                           }}
-                          className={`w-full text-left px-3 py-2 rounded-xl transition-colors flex items-center justify-between ${
+                          className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center justify-between ${
                             activeFacility?.id === fac.id
-                              ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40'
-                              : 'text-slate-300 hover:bg-slate-800'
+                              ? 'bg-teal-50 text-teal-800 font-semibold border border-teal-200/80'
+                              : 'text-slate-700 hover:bg-slate-50'
                           }`}
                         >
                           <div>
                             <div>{fac.name}</div>
                             <div className="text-[10px] text-slate-400 font-mono">{fac.code} &bull; {fac.type}</div>
                           </div>
-                          {activeFacility?.id === fac.id && <Check className="w-4 h-4 text-cyan-400" />}
+                          {activeFacility?.id === fac.id && <Check className="w-4 h-4 text-teal-600" />}
                         </button>
                       ))}
                     </div>
@@ -501,7 +496,7 @@ export default function DoctorPortal() {
           <div className="flex items-center gap-3 flex-1 max-w-xl">
             <form onSubmit={handleScannerSubmit} className="relative flex-1">
               <div className="relative flex items-center">
-                <div className="absolute left-3.5 flex items-center pointer-events-none text-cyan-400">
+                <div className="absolute left-3.5 flex items-center pointer-events-none text-teal-600">
                   <Radio className="w-4 h-4 animate-pulse" />
                 </div>
 
@@ -511,17 +506,17 @@ export default function DoctorPortal() {
                   value={cardSerial}
                   onChange={(e) => setCardSerial(e.target.value)}
                   placeholder="Tap NFC Card or enter Health ID / Serial..."
-                  className="w-full text-xs font-mono pl-10 pr-24 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-700 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 text-white placeholder-slate-500 transition-all shadow-inner"
+                  className="w-full text-xs font-mono pl-10 pr-24 py-2.5 rounded-lg bg-slate-50 border border-slate-200 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900 placeholder-slate-400 transition-all shadow-xs"
                 />
 
                 <div className="absolute right-2 flex items-center gap-1.5">
-                  <span className="hidden sm:inline-block text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                  <span className="hidden sm:inline-block text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-white text-slate-400 border border-slate-200">
                     Ctrl K
                   </span>
                   <button
                     type="submit"
                     disabled={loading || !cardSerial.trim()}
-                    className="px-3 py-1 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-cyan-500/20 disabled:opacity-40"
+                    className="px-3 py-1 rounded-md bg-teal-600 hover:bg-teal-700 text-white font-medium text-xs transition-colors shadow-xs disabled:opacity-40"
                   >
                     Tap Card
                   </button>
@@ -534,15 +529,15 @@ export default function DoctorPortal() {
               <button
                 type="button"
                 onClick={() => setIsPresetDropdownOpen(!isPresetDropdownOpen)}
-                className="px-3 py-2.5 rounded-2xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-xs text-slate-300 font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                className="px-3 py-2.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-xs text-slate-700 font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs"
               >
                 <span>Demo Cards</span>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
 
               {isPresetDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-2 z-50 text-xs">
-                  <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800">
+                <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white border border-slate-200 shadow-lg p-2 z-50 text-xs">
+                  <div className="px-3 py-1.5 text-[10px] uppercase font-semibold text-slate-400 border-b border-slate-100">
                     Quick Simulated Citizens
                   </div>
                   <div className="py-1 space-y-1">
@@ -551,13 +546,13 @@ export default function DoctorPortal() {
                         key={p.patient.healthId}
                         type="button"
                         onClick={() => handleSelectPreset(p, true)}
-                        className="w-full text-left px-3 py-2 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-between"
+                        className="w-full text-left px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors flex items-center justify-between"
                       >
                         <div>
-                          <div className="font-bold">{p.label}</div>
-                          <div className="text-[10px] font-mono text-cyan-400">{p.serial}</div>
+                          <div className="font-semibold text-slate-900">{p.label}</div>
+                          <div className="text-[10px] font-mono text-teal-700">{p.serial}</div>
                         </div>
-                        <span className="text-[10px] font-mono text-slate-500">{p.patient.healthId}</span>
+                        <span className="text-[10px] font-mono text-slate-400">{p.patient.healthId}</span>
                       </button>
                     ))}
                   </div>
@@ -568,9 +563,9 @@ export default function DoctorPortal() {
             {/* Emergency Break-Glass Action */}
             <button
               onClick={() => setIsBreakGlassOpen(true)}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold bg-red-600/90 hover:bg-red-600 text-white shadow-lg shadow-red-600/25 transition-all whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 transition-colors whitespace-nowrap shadow-xs"
             >
-              <Siren className="w-3.5 h-3.5 animate-pulse" />
+              <Siren className="w-3.5 h-3.5 text-rose-600" />
               <span className="hidden sm:inline">Break-Glass</span>
             </button>
           </div>
@@ -579,29 +574,29 @@ export default function DoctorPortal() {
 
       {statusMessage && (
         <div
-          className={`p-4 rounded-2xl text-xs flex items-center gap-2.5 font-medium border ${
+          className={`p-4 rounded-xl text-xs flex items-center gap-2.5 font-medium border ${
             statusMessage.type === 'success'
-              ? 'bg-cyan-950/40 border-cyan-500/30 text-cyan-200'
+              ? 'bg-emerald-50 border-emerald-200/80 text-emerald-900'
               : statusMessage.type === 'warning'
-              ? 'bg-amber-950/40 border-amber-500/30 text-amber-200'
-              : 'bg-red-950/40 border-red-500/30 text-red-200'
+              ? 'bg-amber-50 border-amber-200/80 text-amber-900'
+              : 'bg-rose-50 border-rose-200/80 text-rose-900'
           }`}
         >
           {statusMessage.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
           ) : (
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-400" />
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-600" />
           )}
           <span>{statusMessage.text}</span>
         </div>
       )}
 
-      {/* 2. Patient Hero Banner (Glassmorphic & Clinical Grade) */}
-      <div className="rounded-3xl bg-slate-900/90 backdrop-blur-md border border-slate-800 text-white p-6 shadow-2xl relative overflow-hidden">
+      {/* 2. Patient Hero Banner (Minimalist White Card) */}
+      <div className="rounded-2xl bg-white border border-slate-200/90 p-6 shadow-card relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           {/* Avatar & Primary Demographics */}
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-600 via-teal-500 to-emerald-500 text-white flex items-center justify-center font-black text-lg shadow-lg shadow-cyan-500/20 ring-2 ring-cyan-400/30 flex-shrink-0">
+            <div className="w-12 h-12 rounded-full bg-teal-50 border border-teal-200/80 text-teal-700 flex items-center justify-center font-bold text-base shadow-xs flex-shrink-0">
               {selectedPatient.shortName
                 ?.split(' ')
                 .map((n) => n[0])
@@ -611,20 +606,20 @@ export default function DoctorPortal() {
 
             <div className="space-y-1">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-xl font-bold tracking-tight text-white">
+                <h2 className="text-xl font-semibold tracking-tight text-slate-900">
                   {selectedPatient.name || selectedPatient.shortName}
                 </h2>
-                <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-slate-950 border border-cyan-500/30 text-cyan-300">
+                <span className="font-mono bg-slate-100 text-teal-800 px-2 py-0.5 rounded-md text-xs font-semibold border border-slate-200/60">
                   {selectedPatient.healthId}
                 </span>
                 {selectedPatient.nic && (
-                  <span className="text-[10px] font-mono text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded border border-slate-700">
+                  <span className="text-[10px] font-mono text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/60">
                     NIC: {selectedPatient.nic}
                   </span>
                 )}
               </div>
 
-              <div className="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
+              <div className="text-xs text-slate-500 flex items-center gap-2 flex-wrap font-normal">
                 <span>{calculateAge(selectedPatient.dateOfBirth)}</span>
                 <span>&bull;</span>
                 <span className="capitalize">{selectedPatient.sex}</span>
@@ -637,32 +632,32 @@ export default function DoctorPortal() {
           {/* Clinical Facts & Access Badge */}
           <div className="flex items-center gap-3 flex-wrap">
             {/* Blood Group */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs">
-              <Droplets className="w-4 h-4 text-rose-500" />
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+              <Droplets className="w-3.5 h-3.5 text-rose-500" />
               <div>
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Blood Group</span>
-                <span className="font-bold text-white leading-none">
+                <span className="text-[9px] uppercase font-semibold text-slate-400 block leading-tight">Blood Group</span>
+                <span className="font-semibold text-slate-900 leading-tight">
                   {emergencySummary?.bloodGroup || selectedPatient.bloodGroup || 'O+'}
                 </span>
               </div>
             </div>
 
-            {/* Documented Allergies with Red Hazard Highlights */}
+            {/* Documented Allergies with Soft Hazard Pill */}
             <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs ${
                 emergencySummary?.allergies?.length > 0
-                  ? 'bg-rose-950/40 border-rose-500/40 text-rose-200'
-                  : 'bg-slate-950 border-slate-800 text-slate-300'
+                  ? 'bg-rose-50 border-rose-200/80 text-rose-700'
+                  : 'bg-slate-50 border-slate-200 text-slate-600'
               }`}
             >
               <AlertOctagon
-                className={`w-4 h-4 ${
-                  emergencySummary?.allergies?.length > 0 ? 'text-rose-400 animate-pulse' : 'text-slate-500'
+                className={`w-3.5 h-3.5 ${
+                  emergencySummary?.allergies?.length > 0 ? 'text-rose-600' : 'text-slate-400'
                 }`}
               />
               <div>
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Allergies</span>
-                <span className="font-semibold text-xs leading-none truncate max-w-[150px]">
+                <span className="text-[9px] uppercase font-semibold text-slate-400 block leading-tight">Allergies</span>
+                <span className="font-medium text-xs leading-tight truncate max-w-[150px]">
                   {emergencySummary?.allergies?.length > 0
                     ? emergencySummary.allergies.map((a) => a.substance).join(', ')
                     : 'None documented'}
@@ -672,21 +667,21 @@ export default function DoctorPortal() {
 
             {/* Active 90-Day Clinical Grant Badge */}
             <div
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-semibold ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium ${
                 grant
                   ? isBreakGlass
-                    ? 'bg-red-950/40 border-red-500/40 text-red-200'
-                    : 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
-                  : 'bg-slate-950 border-slate-800 text-slate-400'
+                    ? 'bg-rose-50 border-rose-200/80 text-rose-700'
+                    : 'bg-emerald-50 border-emerald-200/80 text-emerald-700'
+                  : 'bg-slate-50 border-slate-200 text-slate-500'
               }`}
             >
               <Clock
-                className={`w-4 h-4 ${
-                  grant ? (isBreakGlass ? 'text-red-400' : 'text-emerald-400') : 'text-slate-500'
+                className={`w-3.5 h-3.5 ${
+                  grant ? (isBreakGlass ? 'text-rose-600' : 'text-emerald-600') : 'text-slate-400'
                 }`}
               />
               <div>
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">3-Keys Status</span>
+                <span className="text-[9px] uppercase font-semibold text-slate-400 block leading-tight">3-Keys Status</span>
                 <span>
                   {grant
                     ? isBreakGlass
@@ -701,17 +696,17 @@ export default function DoctorPortal() {
             {grant && (
               <div>
                 {unlockedPin ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-300 text-xs font-semibold">
-                    <Unlock className="w-3.5 h-3.5 text-purple-400" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 border border-purple-200/80 text-purple-700 text-xs font-medium">
+                    <Unlock className="w-3.5 h-3.5 text-purple-600" />
                     <span>Sensitive Decrypted</span>
                   </span>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setIsPinModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-xs font-bold text-cyan-300 border border-cyan-500/30 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-xs font-medium text-teal-700 border border-slate-200 transition-colors shadow-xs"
                   >
-                    <Lock className="w-3.5 h-3.5 text-cyan-400" />
+                    <Lock className="w-3.5 h-3.5 text-teal-600" />
                     <span>Unlock PIN</span>
                   </button>
                 )}
@@ -724,7 +719,7 @@ export default function DoctorPortal() {
                 type="button"
                 onClick={handleEndConsultation}
                 title="End Consultation & Release Card"
-                className="p-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-rose-400 border border-slate-800 transition-colors"
+                className="p-2 rounded-lg bg-white hover:bg-slate-50 text-slate-500 hover:text-rose-600 border border-slate-200 transition-colors shadow-xs"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -738,42 +733,42 @@ export default function DoctorPortal() {
         {/* Left Column (approx 58-60% / 7 grid cols): Action Pad & Ordering */}
         <div className="lg:col-span-7 space-y-6">
           {/* Action Pad Switcher Tabs */}
-          <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-900 border border-slate-800">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/90 border border-slate-200/60">
             <button
               type="button"
               onClick={() => setActiveActionPad('prescribe')}
-              className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2 px-4 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 ${
                 activeActionPad === 'prescribe'
-                  ? 'bg-slate-800 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-white text-teal-800 border border-slate-200/60 shadow-xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Pill className="w-4 h-4 text-cyan-400" />
+              <Pill className="w-3.5 h-3.5 text-teal-600" />
               <span>E-Prescription & DDI Safety Pad</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveActionPad('lab')}
-              className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2 px-4 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 ${
                 activeActionPad === 'lab'
-                  ? 'bg-slate-800 text-amber-300 border border-amber-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-white text-amber-800 border border-slate-200/60 shadow-xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <FlaskConical className="w-4 h-4 text-amber-400" />
+              <FlaskConical className="w-3.5 h-3.5 text-amber-600" />
               <span>Order Diagnostic Tests (FHIR ServiceRequest)</span>
             </button>
           </div>
 
           {/* Action Pad 1: E-Prescription Pad & DDI Safety */}
           {activeActionPad === 'prescribe' && (
-            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 text-white shadow-xl space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <Pill className="w-5 h-5 text-cyan-400" />
-                  <h2 className="text-sm font-bold text-white">E-Prescription Pad & Safety Engine</h2>
+                  <Pill className="w-4 h-4 text-teal-600" />
+                  <h2 className="text-sm font-semibold text-slate-900">E-Prescription Pad & Safety Engine</h2>
                 </div>
-                <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded bg-slate-800 text-cyan-400 border border-slate-700">
+                <span className="text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200/70">
                   HL7 FHIR MedicationRequest
                 </span>
               </div>
@@ -781,10 +776,10 @@ export default function DoctorPortal() {
               {/* Searchable Medication Autocomplete & Custom Entry */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-slate-400">
+                  <label className="block text-xs font-medium text-slate-700">
                     Search Medication Catalog or Enter Custom Drug
                   </label>
-                  <span className="text-[10px] text-slate-500 font-mono">
+                  <span className="text-[10px] text-slate-400 font-mono">
                     {DEMO_DRUGS.length} Presets Available
                   </span>
                 </div>
@@ -793,7 +788,7 @@ export default function DoctorPortal() {
                 <div ref={drugDropdownRef} className="relative">
                   <div className="relative flex items-center">
                     <div className="absolute left-3.5 flex items-center pointer-events-none text-slate-400">
-                      <Search className="w-4 h-4 text-cyan-400" />
+                      <Search className="w-4 h-4 text-teal-600" />
                     </div>
 
                     <input
@@ -805,7 +800,7 @@ export default function DoctorPortal() {
                       }}
                       onFocus={() => setIsDrugDropdownOpen(true)}
                       placeholder="Type medication name (e.g. Losartan, Metformin, Azithromycin)..."
-                      className="w-full text-xs p-3 pl-10 pr-10 rounded-2xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                      className="w-full text-xs p-2.5 pl-10 pr-10 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 transition-all"
                     />
 
                     {drugSearchQuery && (
@@ -815,7 +810,7 @@ export default function DoctorPortal() {
                           setDrugSearchQuery('');
                           setIsDrugDropdownOpen(true);
                         }}
-                        className="absolute right-3 text-slate-500 hover:text-slate-300 text-xs p-1"
+                        className="absolute right-3 text-slate-400 hover:text-slate-600 text-xs p-1"
                         title="Clear"
                       >
                         &times;
@@ -825,41 +820,41 @@ export default function DoctorPortal() {
 
                   {/* Floating Autocomplete Dropdown */}
                   {isDrugDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl p-2 z-50 max-h-72 overflow-y-auto space-y-1">
+                    <div className="absolute left-0 right-0 top-full mt-2 rounded-xl bg-white border border-slate-200 shadow-lg p-2 z-50 max-h-72 overflow-y-auto space-y-1">
                       {filteredDrugs.length > 0 ? (
                         filteredDrugs.map((d) => (
                           <button
                             key={d.code}
                             type="button"
                             onClick={() => handleDrugChange(d)}
-                            className={`w-full p-2.5 rounded-xl text-left text-xs transition-colors flex items-center justify-between ${
+                            className={`w-full p-2.5 rounded-lg text-left text-xs transition-colors flex items-center justify-between ${
                               selectedDrug.code === d.code
-                                ? 'bg-cyan-500/20 text-cyan-200 font-bold border border-cyan-500/30'
-                                : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                                ? 'bg-teal-50 text-teal-800 font-semibold border border-teal-200/80'
+                                : 'text-slate-700 hover:bg-slate-50'
                             }`}
                           >
                             <div className="space-y-0.5">
-                              <div className="font-semibold text-white flex items-center gap-2">
+                              <div className="font-medium text-slate-900 flex items-center gap-2">
                                 <span>{d.name}</span>
                                 {d.generic && d.generic !== d.name && (
                                   <span className="text-[10px] text-slate-400 font-normal">({d.generic})</span>
                                 )}
                               </div>
-                              <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
-                                <span className="text-cyan-400">{d.code}</span>
+                              <div className="text-[10px] text-slate-500 font-mono flex items-center gap-2">
+                                <span className="text-teal-700 font-medium">{d.code}</span>
                                 <span>&bull;</span>
-                                <span className="text-amber-300">{d.class}</span>
+                                <span className="text-amber-700">{d.class}</span>
                                 <span>&bull;</span>
                                 <span>{d.tag}</span>
                               </div>
                             </div>
                             {selectedDrug.code === d.code && (
-                              <Check className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                              <Check className="w-4 h-4 text-teal-600 flex-shrink-0" />
                             )}
                           </button>
                         ))
                       ) : (
-                        <div className="p-3 text-center text-xs text-slate-500">
+                        <div className="p-3 text-center text-xs text-slate-400">
                           No exact catalog match found.
                         </div>
                       )}
@@ -869,16 +864,16 @@ export default function DoctorPortal() {
                         <button
                           type="button"
                           onClick={() => handleSelectCustomDrug(drugSearchQuery.trim())}
-                          className="w-full p-3 rounded-xl text-left text-xs bg-slate-900/90 hover:bg-cyan-950/40 border-t border-slate-800 flex items-center justify-between text-cyan-300 transition-colors mt-1"
+                          className="w-full p-2.5 rounded-lg text-left text-xs bg-slate-50 hover:bg-teal-50/60 border-t border-slate-100 flex items-center justify-between text-teal-800 transition-colors mt-1"
                         >
                           <div className="flex items-center gap-2">
-                            <PlusCircle className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                            <PlusCircle className="w-4 h-4 text-teal-600 flex-shrink-0" />
                             <div>
-                              <span className="text-slate-400">Prescribe Custom Medication: </span>
-                              <strong className="text-white">&ldquo;{drugSearchQuery.trim()}&rdquo;</strong>
+                              <span className="text-slate-500 font-normal">Prescribe Custom Medication: </span>
+                              <strong className="text-slate-900 font-medium">&ldquo;{drugSearchQuery.trim()}&rdquo;</strong>
                             </div>
                           </div>
-                          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 flex-shrink-0">
+                          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 flex-shrink-0 font-medium">
                             Custom Drug
                           </span>
                         </button>
@@ -889,8 +884,8 @@ export default function DoctorPortal() {
 
                 {/* Subtle Quick-Select Chips for Routine Prescriptions */}
                 <div className="flex items-center gap-2 flex-wrap pt-1">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
-                    <Zap className="w-3 h-3 text-amber-400" />
+                  <span className="text-[10px] uppercase font-semibold text-slate-400 flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-amber-500" />
                     Routine:
                   </span>
                   {routineDrugs.map((d) => {
@@ -900,10 +895,10 @@ export default function DoctorPortal() {
                         key={d.code}
                         type="button"
                         onClick={() => handleDrugChange(d)}
-                        className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
                           isSelected
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shadow-sm'
-                            : 'bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                            ? 'bg-teal-50 text-teal-700 border border-teal-200/80 font-semibold shadow-xs'
+                            : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80'
                         }`}
                       >
                         {d.name.split(' ')[0]} {d.name.split(' ')[1]}
@@ -914,23 +909,23 @@ export default function DoctorPortal() {
 
                 {/* Selected Medication Card */}
                 {selectedDrug && (
-                  <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 text-xs">
+                  <div className="p-3.5 rounded-xl bg-teal-50/40 border border-teal-200/70 flex items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 flex items-center justify-center font-bold flex-shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-teal-100/80 border border-teal-200/60 text-teal-700 flex items-center justify-center font-bold flex-shrink-0">
                         <Pill className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="font-bold text-white text-sm">{selectedDrug.name}</div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5 flex items-center gap-2 flex-wrap">
-                          <span>Code: <strong className="text-cyan-400">{selectedDrug.code}</strong></span>
+                        <div className="font-semibold text-slate-900 text-xs sm:text-sm">{selectedDrug.name}</div>
+                        <div className="text-[11px] text-slate-500 font-mono mt-0.5 flex items-center gap-2 flex-wrap">
+                          <span>Code: <strong className="text-teal-700">{selectedDrug.code}</strong></span>
                           <span>&bull;</span>
-                          <span>Class: <strong className="text-amber-300">{selectedDrug.class || 'OTHER'}</strong></span>
+                          <span>Class: <strong className="text-slate-700">{selectedDrug.class || 'OTHER'}</strong></span>
                           <span>&bull;</span>
-                          <span className="text-slate-500">{selectedDrug.tag}</span>
+                          <span className="text-slate-400">{selectedDrug.tag}</span>
                         </div>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex-shrink-0">
+                    <span className="text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-teal-100/80 text-teal-800 border border-teal-200/60 flex-shrink-0">
                       Selected Target
                     </span>
                   </div>
@@ -940,45 +935,45 @@ export default function DoctorPortal() {
               {/* Dosage & Parameters */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-3">
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Dosage Instruction</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Dosage Instruction</label>
                   <input
                     type="text"
                     value={dosageInstruction}
                     onChange={(e) => setDosageInstruction(e.target.value)}
-                    className="w-full text-xs p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    className="w-full text-xs p-2.5 rounded-lg bg-white border border-slate-200 text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Quantity (Units)</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Quantity (Units)</label>
                   <input
                     type="number"
                     min={1}
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full text-xs p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    className="w-full text-xs p-2.5 rounded-lg bg-white border border-slate-200 text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Days Supply</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Days Supply</label>
                   <input
                     type="number"
                     min={1}
                     value={daysSupply}
                     onChange={(e) => setDaysSupply(e.target.value)}
-                    className="w-full text-xs p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    className="w-full text-xs p-2.5 rounded-lg bg-white border border-slate-200 text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Repeats / Refills</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Repeats / Refills</label>
                   <input
                     type="number"
                     min={0}
                     value={repeatsAllowed}
                     onChange={(e) => setRepeatsAllowed(e.target.value)}
-                    className="w-full text-xs p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    className="w-full text-xs p-2.5 rounded-lg bg-white border border-slate-200 text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                   />
                 </div>
               </div>
@@ -986,7 +981,7 @@ export default function DoctorPortal() {
               <button
                 onClick={() => handlePrescribe()}
                 disabled={loading || !grant}
-                className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white shadow-lg shadow-cyan-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                className="w-full py-2.5 px-4 rounded-lg text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>{grant ? 'Issue Electronic Prescription' : 'Present Health Card to Prescribe'}</span>
@@ -996,20 +991,20 @@ export default function DoctorPortal() {
 
           {/* Action Pad 2: Lab Orders Pad */}
           {activeActionPad === 'lab' && (
-            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 text-white shadow-xl space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <FlaskConical className="w-5 h-5 text-amber-400" />
-                  <h2 className="text-sm font-bold text-white">Order Diagnostic Tests & Lab Investigations</h2>
+                  <FlaskConical className="w-4 h-4 text-amber-600" />
+                  <h2 className="text-sm font-semibold text-slate-900">Order Diagnostic Tests & Lab Investigations</h2>
                 </div>
-                <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700">
+                <span className="text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/70">
                   HL7 FHIR ServiceRequest
                 </span>
               </div>
 
               {/* Standard test presets */}
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-2">Select Investigation Panel</label>
+                <label className="block text-xs font-medium text-slate-700 mb-2">Select Investigation Panel</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {DEMO_LAB_TESTS.map((t) => (
                     <button
@@ -1018,11 +1013,11 @@ export default function DoctorPortal() {
                       onClick={() => setSelectedLabTest(t)}
                       className={`p-3 rounded-xl border text-left text-xs transition-all ${
                         selectedLabTest.code === t.code
-                          ? 'border-amber-500/60 bg-amber-950/40 font-bold text-amber-200 ring-1 ring-amber-500/50'
-                          : 'border-slate-800 hover:bg-slate-800/60 text-slate-300'
+                          ? 'border-amber-400 bg-amber-50/60 font-semibold text-amber-900 ring-1 ring-amber-400/40'
+                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
                       }`}
                     >
-                      <div className="font-bold">{t.name}</div>
+                      <div className="font-semibold text-slate-900">{t.name}</div>
                       <div className="text-[11px] text-slate-500 font-normal mt-0.5">
                         Normal: {t.normalRange} &bull; LOINC: {t.code}
                       </div>
@@ -1034,11 +1029,11 @@ export default function DoctorPortal() {
               {/* Priority & Notes */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Priority</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Priority</label>
                   <select
                     value={labPriority}
                     onChange={(e) => setLabPriority(e.target.value)}
-                    className="w-full text-xs p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                    className="w-full text-xs p-2.5 rounded-lg bg-white border border-slate-200 text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                   >
                     <option value="ROUTINE">ROUTINE (Standard)</option>
                     <option value="URGENT">URGENT (Priority)</option>
@@ -1047,13 +1042,13 @@ export default function DoctorPortal() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Clinical Indication / Notes</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Clinical Indication / Notes</label>
                   <input
                     type="text"
                     value={labNotes}
                     onChange={(e) => setLabNotes(e.target.value)}
                     placeholder="e.g. Fasting glucose level monitoring post treatment"
-                    className="w-full text-xs p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                    className="w-full text-xs p-2.5 rounded-lg bg-white border border-slate-200 text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                   />
                 </div>
               </div>
@@ -1062,7 +1057,7 @@ export default function DoctorPortal() {
                 type="button"
                 onClick={handleOrderLabTest}
                 disabled={loading || !grant}
-                className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-slate-950 shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                className="w-full py-2.5 px-4 rounded-lg text-xs font-medium bg-amber-600 hover:bg-amber-700 text-white shadow-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>{grant ? 'Issue Lab Order (FHIR ServiceRequest)' : 'Present Health Card to Order'}</span>
@@ -1072,13 +1067,13 @@ export default function DoctorPortal() {
 
           {/* Active Lab Orders Pipeline */}
           {labOrders.length > 0 && (
-            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 text-white shadow-xl space-y-3">
-              <h3 className="text-sm font-bold text-white flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-3">
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center justify-between border-b border-slate-100 pb-3">
                 <span className="flex items-center gap-2">
-                  <FlaskConical className="w-4 h-4 text-amber-400" />
+                  <FlaskConical className="w-4 h-4 text-amber-600" />
                   <span>Diagnostic Lab Orders Pipeline</span>
                 </span>
-                <span className="text-[11px] font-mono text-slate-400">{labOrders.length} Orders</span>
+                <span className="text-[11px] font-mono text-slate-500">{labOrders.length} Orders</span>
               </h3>
 
               <div className="space-y-2">
@@ -1089,36 +1084,36 @@ export default function DoctorPortal() {
                       key={o.id}
                       className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
                         isCompleted
-                          ? 'border-emerald-500/30 bg-emerald-950/20'
-                          : 'border-amber-500/30 bg-amber-950/20'
+                          ? 'border-emerald-200/80 bg-emerald-50/40'
+                          : 'border-amber-200/80 bg-amber-50/40'
                       }`}
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-white">{o.testName}</span>
+                          <span className="font-semibold text-slate-900">{o.testName}</span>
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
                               isCompleted
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-amber-100 text-amber-800 border border-amber-200'
                             }`}
                           >
                             {o.status}
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                        <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                           Order Code: {o.orderCode} &bull; Priority: {o.priority} &bull; Ordered: {new Date(o.orderedAt).toLocaleDateString()}
                         </div>
                         {o.clinicalNotes && (
-                          <div className="text-[11px] text-slate-400 italic mt-0.5">
+                          <div className="text-[11px] text-slate-500 italic mt-0.5">
                             Notes: &ldquo;{o.clinicalNotes}&rdquo;
                           </div>
                         )}
                       </div>
 
                       {isCompleted && (
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-emerald-500/30 self-start sm:self-center">
-                          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                        <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-200/80 self-start sm:self-center shadow-xs">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                           <span>Verified Results in Timeline</span>
                         </div>
                       )}
@@ -1131,26 +1126,27 @@ export default function DoctorPortal() {
 
           {/* Newly Issued Prescriptions */}
           {issuedPrescriptions.length > 0 && (
-            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 text-white shadow-xl space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-                <CheckCircle2 className="w-4 h-4 text-cyan-400" />
+            <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-4">
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+                <CheckCircle2 className="w-4 h-4 text-teal-600" />
                 <span>Recently Issued Prescription QR Code</span>
               </h3>
 
               <div className="space-y-4">
                 {issuedPrescriptions.map((rx) => (
-                  <div key={rx.id} className="p-4 rounded-2xl border border-cyan-500/30 bg-cyan-950/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div key={rx.id} className="p-4 rounded-xl border border-teal-200/80 bg-teal-50/30 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="space-y-1">
-                      <div className="font-bold text-sm text-white">{rx.medicationName}</div>
-                      <div className="text-xs text-slate-300">{rx.dosageInstruction}</div>
-                      <div className="text-xs text-cyan-300 font-mono">Code: {rx.prescriptionCode}</div>
-                      <div className="text-[11px] text-emerald-400 font-semibold">
+                      <div className="font-semibold text-sm text-slate-900">{rx.medicationName}</div>
+                      <div className="text-xs text-slate-600">{rx.dosageInstruction}</div>
+                      <div className="text-xs text-teal-700 font-mono font-medium">Code: {rx.prescriptionCode}</div>
+                      <div className="text-[11px] text-emerald-700 font-medium">
                         State: {rx.dispenseState} &bull; Repeats remaining: {rx.repeatsRemaining}
                       </div>
                     </div>
-                    <div className="flex flex-col items-center p-2 rounded-xl bg-white">
+
+                    <div className="flex flex-col items-center p-2 rounded-lg bg-white border border-slate-200 shadow-xs">
                       <QrCodeView text={rx.prescriptionCode} size={90} />
-                      <span className="text-[9px] font-mono text-slate-600 mt-1">Pharmacy QR Token</span>
+                      <span className="text-[9px] font-mono text-slate-500 mt-1">Pharmacy QR Token</span>
                     </div>
                   </div>
                 ))}
@@ -1161,21 +1157,21 @@ export default function DoctorPortal() {
 
         {/* Right Column (approx 40-42% / 5 grid cols): Verified Clinical Records Timeline */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 text-white shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <FileText className="w-4 h-4 text-cyan-400" />
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-card space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-teal-600" />
                 <span>Verified Clinical Records</span>
               </h3>
-              <span className="text-xs font-mono text-slate-400">
+              <span className="text-xs font-mono text-slate-500">
                 {records.length} Verified
               </span>
             </div>
 
             {records.length === 0 ? (
-              <div className="text-center py-12 text-xs text-slate-500 space-y-2">
-                <ShieldCheck className="w-10 h-10 text-slate-700 mx-auto" />
-                <div>
+              <div className="text-center py-12 text-xs text-slate-400 space-y-2">
+                <ShieldCheck className="w-8 h-8 text-slate-300 mx-auto" />
+                <div className="text-slate-500 font-normal">
                   {grant
                     ? 'No clinical records found for this patient.'
                     : 'NFC Card Tap required: Present and tap patient’s Health Card in the top scanner to decrypt and view complete verified clinical timeline.'}
@@ -1184,26 +1180,26 @@ export default function DoctorPortal() {
             ) : (
               <div className="space-y-3">
                 {records.map((r) => (
-                  <div key={r.id} className="p-4 rounded-2xl border border-slate-800 bg-slate-950/70 hover:border-slate-700 transition-all space-y-2.5">
+                  <div key={r.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:shadow-xs transition-all space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="font-bold text-xs text-slate-200">{r.mainResource}</div>
+                      <div className="font-semibold text-xs text-slate-800">{r.mainResource}</div>
                       <div className="flex items-center gap-1.5">
                         {r.trust?.status === 'VERIFIED' && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                            <ShieldCheck className="w-3 h-3" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                            <ShieldCheck className="w-3 h-3 text-emerald-600" />
                             Ed25519 Verified
                           </span>
                         )}
                         {r.isSensitive && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                            <Lock className="w-3 h-3" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200/80">
+                            <Lock className="w-3 h-3 text-purple-600" />
                             Sensitive
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className="text-[11px] text-slate-400 flex items-center gap-3">
-                      <span>Facility: <strong className="text-slate-300">{r.facilityName || 'Medical Facility'}</strong></span>
+                    <div className="text-[11px] text-slate-500 flex items-center gap-3">
+                      <span>Facility: <strong className="text-slate-700 font-medium">{r.facilityName || 'Medical Facility'}</strong></span>
                       <span>&bull;</span>
                       <span>{new Date(r.createdAt).toLocaleDateString()}</span>
                     </div>
@@ -1212,15 +1208,15 @@ export default function DoctorPortal() {
                     {r.bundle?.entry?.filter((e) => e.resource?.resourceType === 'Observation').map((obs) => {
                       const res = obs.resource;
                       return (
-                        <div key={res.id || Math.random()} className="mt-2 p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+                        <div key={res.id || Math.random()} className="mt-2 p-3 rounded-lg bg-white border border-slate-200 text-xs">
                           <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-200">{res.code?.text || res.code?.coding?.[0]?.display || 'Diagnostic Observation'}</span>
-                            <span className="font-black text-cyan-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-cyan-500/30">
+                            <span className="font-medium text-slate-800">{res.code?.text || res.code?.coding?.[0]?.display || 'Diagnostic Observation'}</span>
+                            <span className="font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-md border border-teal-200/60 font-mono">
                               {res.valueQuantity?.value} {res.valueQuantity?.unit}
                             </span>
                           </div>
                           {res.referenceRange?.[0]?.text && (
-                            <div className="text-[11px] text-slate-400 mt-1">
+                            <div className="text-[11px] text-slate-500 mt-1">
                               Reference: {res.referenceRange[0].text}
                             </div>
                           )}

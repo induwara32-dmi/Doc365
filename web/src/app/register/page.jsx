@@ -13,10 +13,6 @@ import {
   AlertTriangle,
   ArrowRight,
   ArrowLeft,
-  Building2,
-  Lock,
-  CreditCard,
-  FileBadge,
 } from 'lucide-react';
 import {
   registerPatient,
@@ -159,14 +155,14 @@ export default function RegisterPage() {
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
       {/* Header */}
       <div className="text-center space-y-2">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-200/70 text-xs font-medium tracking-wide">
+          <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
           <span>National Health Onboarding</span>
         </div>
-        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+        <h1 className="text-2xl sm:text-4xl font-semibold text-slate-900 tracking-tight">
           Join the Doc365 Healthcare Network
         </h1>
-        <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto">
+        <p className="text-xs sm:text-sm text-slate-500 max-w-xl mx-auto font-normal">
           Multi-tenant registration for Citizens, Licensed Doctors, Certified Pharmacies, and Accredited Diagnostic Labs.
         </p>
       </div>
@@ -179,28 +175,24 @@ export default function RegisterPage() {
             label: 'Citizen / Patient',
             desc: 'Digital Health Card & Records',
             icon: User,
-            color: 'purple',
           },
           {
             id: 'doctor',
             label: 'Doctor (SLMC)',
             desc: 'Clinical Practice & Rx',
             icon: Stethoscope,
-            color: 'emerald',
           },
           {
             id: 'pharmacy',
             label: 'Pharmacy (NMRA)',
             desc: 'Scoped Dispensing & POS',
             icon: Pill,
-            color: 'sky',
           },
           {
             id: 'lab',
             label: 'Diagnostic Lab',
             desc: 'PHSRC Accredited Testing',
             icon: FlaskConical,
-            color: 'amber',
           },
         ].map((item) => {
           const isSelected = selectedRole === item.id;
@@ -214,21 +206,21 @@ export default function RegisterPage() {
                 setError('');
                 setSuccess('');
               }}
-              className={`p-4 rounded-2xl border text-left transition-all ${
+              className={`p-4 rounded-xl border text-left transition-all ${
                 isSelected
-                  ? 'border-emerald-600 bg-white ring-2 ring-emerald-500/20 shadow-md'
-                  : 'border-slate-200 bg-slate-50/50 hover:bg-white text-slate-600'
+                  ? 'border-teal-500 bg-teal-50/40 ring-1 ring-teal-500/30 shadow-xs'
+                  : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600 shadow-card'
               }`}
             >
               <div
-                className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2.5 ${
-                  isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
+                className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${
+                  isSelected ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-4 h-4" />
               </div>
-              <div className="font-bold text-xs text-slate-900">{item.label}</div>
-              <div className="text-[11px] text-slate-500 mt-0.5">{item.desc}</div>
+              <div className="font-semibold text-xs text-slate-900">{item.label}</div>
+              <div className="text-[11px] text-slate-500 mt-0.5 font-normal">{item.desc}</div>
             </button>
           );
         })}
@@ -236,87 +228,87 @@ export default function RegisterPage() {
 
       {/* Feedback Messages */}
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-800 text-xs flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2 font-medium">
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-900 text-xs flex items-center gap-2 font-medium">
           <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
           <span>{success}</span>
         </div>
       )}
 
       {/* Form Container */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-sm">
+      <div className="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200/90 shadow-card">
         {/* Form 1: Patient Registration */}
         {selectedRole === 'patient' && (
           <form onSubmit={handlePatientSubmit} className="space-y-5">
             <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <User className="w-5 h-5 text-purple-600" />
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <User className="w-5 h-5 text-teal-600" />
                 <span>Citizen / Patient Registration</span>
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 font-normal">
                 Creates your lifelong Health ID, active digital health card, and sovereign patient account.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Given Name(s)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Given Name(s)</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Kumari"
                   value={patientForm.givenName}
                   onChange={(e) => setPatientForm({ ...patientForm, givenName: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Family / Surname</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Family / Surname</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Jayasinghe"
                   value={patientForm.familyName}
                   onChange={(e) => setPatientForm({ ...patientForm, familyName: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Full Legal Name (as in Birth Certificate / NIC)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Full Legal Name (as in Birth Certificate / NIC)</label>
                 <input
                   type="text"
                   placeholder="e.g. Herath Mudiyanselage Kumari Jayasinghe"
                   value={patientForm.fullName}
                   onChange={(e) => setPatientForm({ ...patientForm, fullName: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Date of Birth</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Date of Birth</label>
                 <input
                   type="date"
                   required
                   value={patientForm.dateOfBirth}
                   onChange={(e) => setPatientForm({ ...patientForm, dateOfBirth: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Biological Sex</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Biological Sex</label>
                 <select
                   value={patientForm.sex}
                   onChange={(e) => setPatientForm({ ...patientForm, sex: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 bg-white text-slate-900"
                 >
                   <option value="female">Female</option>
                   <option value="male">Male</option>
@@ -326,30 +318,30 @@ export default function RegisterPage() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">National Identity Card (NIC - Optional)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">National Identity Card (NIC - Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. 199071500345 or 907150034V"
                   value={patientForm.nic}
                   onChange={(e) => setPatientForm({ ...patientForm, nic: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Choose Username</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Choose Username</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. kumari.j"
                   value={patientForm.username}
                   onChange={(e) => setPatientForm({ ...patientForm, username: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Password (min 8 chars)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Password (min 8 chars)</label>
                 <input
                   type="password"
                   required
@@ -357,7 +349,7 @@ export default function RegisterPage() {
                   placeholder="••••••••••••"
                   value={patientForm.password}
                   onChange={(e) => setPatientForm({ ...patientForm, password: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
             </div>
@@ -365,7 +357,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              className="w-full py-2.5 px-4 rounded-lg text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
               <span>{loading ? 'Creating Citizen Health ID...' : 'Complete Citizen Registration'}</span>
               <ArrowRight className="w-4 h-4" />
@@ -377,46 +369,46 @@ export default function RegisterPage() {
         {selectedRole === 'doctor' && (
           <form onSubmit={handleDoctorSubmit} className="space-y-5">
             <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Stethoscope className="w-5 h-5 text-emerald-600" />
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <Stethoscope className="w-5 h-5 text-teal-600" />
                 <span>Doctor & Medical Specialist Registration</span>
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 font-normal">
                 Register as a licensed physician to access patient verified histories and prescribe medicines.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Doctor Full Name</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Doctor Full Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Dr. K. M. Wickramasinghe"
                   value={doctorForm.fullName}
                   onChange={(e) => setDoctorForm({ ...doctorForm, fullName: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">SLMC Registration Number</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">SLMC Registration Number</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. SLMC-48291"
                   value={doctorForm.slmcNumber}
                   onChange={(e) => setDoctorForm({ ...doctorForm, slmcNumber: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 uppercase text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Clinical Specialization</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Clinical Specialization</label>
                 <select
                   value={doctorForm.specialization}
                   onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 bg-white text-slate-900"
                 >
                   <option value="General Medicine">General Medicine</option>
                   <option value="Cardiology">Cardiology</option>
@@ -429,12 +421,12 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Primary Hospital Facility</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Primary Hospital Facility</label>
                 <select
                   required
                   value={doctorForm.facilityId}
                   onChange={(e) => setDoctorForm({ ...doctorForm, facilityId: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 bg-white text-slate-900"
                 >
                   {facilities.map((f) => (
                     <option key={f.id} value={f.id}>
@@ -445,19 +437,19 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Choose Username</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Choose Username</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. dr.wickrama"
                   value={doctorForm.username}
                   onChange={(e) => setDoctorForm({ ...doctorForm, username: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Password</label>
                 <input
                   type="password"
                   required
@@ -465,7 +457,7 @@ export default function RegisterPage() {
                   placeholder="••••••••••••"
                   value={doctorForm.password}
                   onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
             </div>
@@ -473,7 +465,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              className="w-full py-2.5 px-4 rounded-lg text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
               <span>{loading ? 'Verifying SLMC Credentials...' : 'Register as Medical Doctor'}</span>
               <ArrowRight className="w-4 h-4" />
@@ -485,78 +477,78 @@ export default function RegisterPage() {
         {selectedRole === 'pharmacy' && (
           <form onSubmit={handlePharmacySubmit} className="space-y-5">
             <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Pill className="w-5 h-5 text-sky-600" />
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <Pill className="w-5 h-5 text-teal-600" />
                 <span>Pharmacy Facility & Pharmacist Onboarding</span>
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 font-normal">
                 Register a licensed retail or hospital pharmacy under NMRA regulations.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Pharmacy Name</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Pharmacy Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Lanka Meds Colombo 03"
                   value={pharmacyForm.pharmacyName}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, pharmacyName: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Facility Short Code</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Facility Short Code</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. lanka-meds-colombo-3"
                   value={pharmacyForm.pharmacyCode}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, pharmacyCode: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 lowercase font-mono"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 lowercase font-mono text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">NMRA License Number</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">NMRA License Number</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. NMRA-PH-2026-9921"
                   value={pharmacyForm.nmraLicense}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, nmraLicense: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 uppercase font-mono"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 uppercase font-mono text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Supervising Pharmacist Name</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Supervising Pharmacist Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. S. L. Weerasinghe"
                   value={pharmacyForm.fullName}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, fullName: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Pharmacist Username</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Pharmacist Username</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. pharm.weerasinghe"
                   value={pharmacyForm.username}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, username: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Password</label>
                 <input
                   type="password"
                   required
@@ -564,7 +556,7 @@ export default function RegisterPage() {
                   placeholder="••••••••••••"
                   value={pharmacyForm.password}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, password: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
             </div>
@@ -572,7 +564,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-md shadow-sky-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              className="w-full py-2.5 px-4 rounded-lg text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
               <span>{loading ? 'Registering Pharmacy Facility...' : 'Complete Pharmacy Onboarding'}</span>
               <ArrowRight className="w-4 h-4" />
@@ -584,78 +576,78 @@ export default function RegisterPage() {
         {selectedRole === 'lab' && (
           <form onSubmit={handleLabSubmit} className="space-y-5">
             <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <FlaskConical className="w-5 h-5 text-amber-600" />
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <FlaskConical className="w-5 h-5 text-teal-600" />
                 <span>Diagnostic Laboratory & MLT Onboarding</span>
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 font-normal">
                 Register an accredited pathology laboratory under PHSRC accreditation with cryptographic signing capabilities.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Laboratory Facility Name</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Laboratory Facility Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Apex Diagnostics Kandy"
                   value={labForm.labName}
                   onChange={(e) => setLabForm({ ...labForm, labName: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Lab Short Code</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Lab Short Code</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. apex-diagnostics-kandy"
                   value={labForm.labCode}
                   onChange={(e) => setLabForm({ ...labForm, labCode: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 lowercase font-mono"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 lowercase font-mono text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">PHSRC Registration Number</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">PHSRC Registration Number</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. PHSRC-LAB-2026-7712"
                   value={labForm.phsrcRegNo}
                   onChange={(e) => setLabForm({ ...labForm, phsrcRegNo: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 uppercase font-mono"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 uppercase font-mono text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Lead MLT Full Name</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Lead MLT Full Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. P. A. Ranasinghe"
                   value={labForm.fullName}
                   onChange={(e) => setLabForm({ ...labForm, fullName: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">MLT Username</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">MLT Username</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. mlt.ranasinghe"
                   value={labForm.username}
                   onChange={(e) => setLabForm({ ...labForm, username: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Password</label>
                 <input
                   type="password"
                   required
@@ -663,7 +655,7 @@ export default function RegisterPage() {
                   placeholder="••••••••••••"
                   value={labForm.password}
                   onChange={(e) => setLabForm({ ...labForm, password: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                 />
               </div>
             </div>
@@ -671,7 +663,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              className="w-full py-2.5 px-4 rounded-lg text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
               <span>{loading ? 'Registering Diagnostic Lab...' : 'Complete Laboratory Onboarding'}</span>
               <ArrowRight className="w-4 h-4" />
@@ -684,9 +676,9 @@ export default function RegisterPage() {
       <div className="text-center">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Portal Hub</span>
         </Link>
       </div>

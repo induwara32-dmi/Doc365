@@ -9,17 +9,12 @@ import {
   ShieldCheck,
   FileCheck,
   Upload,
-  Search,
   Sparkles,
   ArrowRight,
-  User,
-  Building2,
   Lock,
   ChevronDown,
   Radio,
   Activity,
-  FileText,
-  Zap,
 } from 'lucide-react';
 import {
   getCurrentUser,
@@ -204,27 +199,27 @@ export default function LabPortal() {
     const code = activeOrder.testCode;
     if (code === '1558-6') {
       // Fasting Blood Glucose
-      if (val < 70) return { status: 'LOW', label: 'Hypoglycemia Alert (<70 mg/dL)', color: 'bg-blue-950/50 text-blue-300 border-blue-500/40' };
-      if (val <= 99) return { status: 'NORMAL', label: 'Normal Fasting Range (70-99 mg/dL)', color: 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' };
-      if (val <= 125) return { status: 'ELEVATED', label: 'Impaired / Pre-diabetic Range (100-125 mg/dL)', color: 'bg-amber-950/50 text-amber-300 border-amber-500/40' };
-      return { status: 'HIGH', label: 'Hyperglycemia / Diabetic Range (≥126 mg/dL)', color: 'bg-rose-950/60 text-rose-300 border-rose-500/50 font-bold' };
+      if (val < 70) return { status: 'LOW', label: 'Hypoglycemia Alert (<70 mg/dL)', color: 'bg-blue-50 text-blue-800 border-blue-200/80' };
+      if (val <= 99) return { status: 'NORMAL', label: 'Normal Fasting Range (70-99 mg/dL)', color: 'bg-emerald-50 text-emerald-800 border-emerald-200/80' };
+      if (val <= 125) return { status: 'ELEVATED', label: 'Impaired / Pre-diabetic Range (100-125 mg/dL)', color: 'bg-amber-50 text-amber-800 border-amber-200/80' };
+      return { status: 'HIGH', label: 'Hyperglycemia / Diabetic Range (≥126 mg/dL)', color: 'bg-rose-50 text-rose-800 border-rose-200/80 font-semibold' };
     } else if (code === '4548-4') {
       // HbA1c
-      if (val < 5.7) return { status: 'NORMAL', label: 'Optimal (<5.7%)', color: 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' };
-      if (val <= 6.4) return { status: 'ELEVATED', label: 'Pre-diabetes Range (5.7 - 6.4%)', color: 'bg-amber-950/50 text-amber-300 border-amber-500/40' };
-      return { status: 'HIGH', label: 'Elevated HbA1c (≥6.5%)', color: 'bg-rose-950/60 text-rose-300 border-rose-500/50 font-bold' };
+      if (val < 5.7) return { status: 'NORMAL', label: 'Optimal (<5.7%)', color: 'bg-emerald-50 text-emerald-800 border-emerald-200/80' };
+      if (val <= 6.4) return { status: 'ELEVATED', label: 'Pre-diabetes Range (5.7 - 6.4%)', color: 'bg-amber-50 text-amber-800 border-amber-200/80' };
+      return { status: 'HIGH', label: 'Elevated HbA1c (≥6.5%)', color: 'bg-rose-50 text-rose-800 border-rose-200/80 font-semibold' };
     } else if (code === '2093-3') {
       // Total Cholesterol
-      if (val < 200) return { status: 'NORMAL', label: 'Desirable (<200 mg/dL)', color: 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' };
-      if (val <= 239) return { status: 'ELEVATED', label: 'Borderline High (200 - 239 mg/dL)', color: 'bg-amber-950/50 text-amber-300 border-amber-500/40' };
-      return { status: 'HIGH', label: 'High Cholesterol (≥240 mg/dL)', color: 'bg-rose-950/60 text-rose-300 border-rose-500/50 font-bold' };
+      if (val < 200) return { status: 'NORMAL', label: 'Desirable (<200 mg/dL)', color: 'bg-emerald-50 text-emerald-800 border-emerald-200/80' };
+      if (val <= 239) return { status: 'ELEVATED', label: 'Borderline High (200 - 239 mg/dL)', color: 'bg-amber-50 text-amber-800 border-amber-200/80' };
+      return { status: 'HIGH', label: 'High Cholesterol (≥240 mg/dL)', color: 'bg-rose-50 text-rose-800 border-rose-200/80 font-semibold' };
     } else if (code === '2160-0') {
       // Creatinine
-      if (val <= 1.3) return { status: 'NORMAL', label: 'Normal Renal Function (0.7 - 1.3 mg/dL)', color: 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' };
-      return { status: 'HIGH', label: 'Elevated Serum Creatinine (Renal Stress)', color: 'bg-rose-950/60 text-rose-300 border-rose-500/50 font-bold' };
+      if (val <= 1.3) return { status: 'NORMAL', label: 'Normal Renal Function (0.7 - 1.3 mg/dL)', color: 'bg-emerald-50 text-emerald-800 border-emerald-200/80' };
+      return { status: 'HIGH', label: 'Elevated Serum Creatinine (Renal Stress)', color: 'bg-rose-50 text-rose-800 border-rose-200/80 font-semibold' };
     }
 
-    return { status: 'NORMAL', label: 'Within Reference Range', color: 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' };
+    return { status: 'NORMAL', label: 'Within Reference Range', color: 'bg-emerald-50 text-emerald-800 border-emerald-200/80' };
   };
 
   const evalResult = evaluateObservation();
@@ -369,33 +364,30 @@ export default function LabPortal() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* 1. Header-Integrated Laboratory Command & ID Scanner Bar */}
-      <div className="rounded-3xl bg-slate-950 border border-slate-800 text-white p-5 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-16 w-72 h-72 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-
+      <div className="rounded-2xl bg-white border border-slate-200/90 shadow-card p-5">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5 relative z-10">
           {/* Diagnostic Facility & MLT Credentials */}
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-emerald-600 to-teal-500 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-500/20">
-              <FlaskConical className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-lg bg-teal-50 border border-teal-100 text-teal-700 flex items-center justify-center shadow-xs">
+              <FlaskConical className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg font-bold tracking-tight text-white">
+                <h1 className="text-base font-semibold text-slate-900">
                   Laboratory Diagnostic Worklist & Fulfillment
                 </h1>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                <span className="text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/80">
                   Diagnostic Facility
                 </span>
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
+                <span className="text-[10px] font-mono font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                   PHSRC #{currentUser?.licenseNumber || 'PHSRC-LAB-2024-9120'}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-medium mt-0.5 flex items-center gap-2">
+              <p className="text-xs text-slate-500 font-normal mt-0.5 flex items-center gap-2">
                 <span>{currentUser?.facilityName || 'National Diagnostic Laboratory'}</span>
                 <span>&bull;</span>
                 <span>
-                  MLT: <strong className="text-slate-200">{currentUser?.fullName || currentUser?.label || 'A. Silva'}</strong>
+                  MLT: <strong className="text-slate-800 font-medium">{currentUser?.fullName || currentUser?.label || 'A. Silva'}</strong>
                 </span>
               </p>
             </div>
@@ -405,7 +397,7 @@ export default function LabPortal() {
           <div className="flex items-center gap-3 flex-1 max-w-xl">
             <form onSubmit={handleScannerSubmit} className="relative flex-1">
               <div className="relative flex items-center">
-                <div className="absolute left-3.5 flex items-center pointer-events-none text-emerald-400">
+                <div className="absolute left-3.5 flex items-center pointer-events-none text-teal-600">
                   <Radio className="w-4 h-4 animate-pulse" />
                 </div>
 
@@ -415,17 +407,17 @@ export default function LabPortal() {
                   value={patientHealthId}
                   onChange={(e) => setPatientHealthId(e.target.value)}
                   placeholder="Scan Health Card or enter Health ID..."
-                  className="w-full text-xs font-mono pl-10 pr-24 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-700 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 text-white placeholder-slate-500 transition-all shadow-inner uppercase"
+                  className="w-full text-xs font-mono pl-10 pr-24 py-2.5 rounded-lg bg-slate-50 border border-slate-200 focus:bg-white focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100 text-slate-900 placeholder-slate-400 uppercase transition-all shadow-xs"
                 />
 
                 <div className="absolute right-2 flex items-center gap-1.5">
-                  <span className="hidden sm:inline-block text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                  <span className="hidden sm:inline-block text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-white text-slate-400 border border-slate-200">
                     Ctrl K
                   </span>
                   <button
                     type="submit"
                     disabled={loading || !patientHealthId.trim()}
-                    className="px-3 py-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-emerald-500/20 disabled:opacity-40"
+                    className="px-3 py-1 rounded-md bg-teal-600 hover:bg-teal-700 text-white font-medium text-xs transition-colors shadow-xs disabled:opacity-40"
                   >
                     Scan ID
                   </button>
@@ -438,15 +430,15 @@ export default function LabPortal() {
               <button
                 type="button"
                 onClick={() => setIsPresetDropdownOpen(!isPresetDropdownOpen)}
-                className="px-3 py-2.5 rounded-2xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-xs text-slate-300 font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                className="px-3 py-2.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-xs text-slate-700 font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs"
               >
                 <span>Demo Patients</span>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
 
               {isPresetDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-2 z-50 text-xs">
-                  <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800">
+                <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white border border-slate-200 shadow-lg p-2 z-50 text-xs">
+                  <div className="px-3 py-1.5 text-[10px] uppercase font-semibold text-slate-400 border-b border-slate-100">
                     Quick Simulated Citizens
                   </div>
                   <div className="py-1 space-y-1">
@@ -455,17 +447,17 @@ export default function LabPortal() {
                         key={p.patient.healthId}
                         type="button"
                         onClick={() => handleSelectPreset(p)}
-                        className={`w-full text-left px-3 py-2 rounded-xl transition-colors flex items-center justify-between ${
+                        className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center justify-between ${
                           selectedPatient.healthId === p.patient.healthId
-                            ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            ? 'bg-teal-50 text-teal-800 font-semibold border border-teal-200/80'
+                            : 'text-slate-700 hover:bg-slate-50'
                         }`}
                       >
                         <div>
-                          <div className="font-bold">{p.label}</div>
-                          <div className="text-[10px] font-mono text-emerald-400">{p.serial}</div>
+                          <div className="font-semibold text-slate-900">{p.label}</div>
+                          <div className="text-[10px] font-mono text-teal-700">{p.serial}</div>
                         </div>
-                        <span className="text-[10px] font-mono text-slate-500">{p.patient.healthId}</span>
+                        <span className="text-[10px] font-mono text-slate-400">{p.patient.healthId}</span>
                       </button>
                     ))}
                   </div>
@@ -474,8 +466,8 @@ export default function LabPortal() {
             </div>
 
             {/* Cryptographic Facility Indicator */}
-            <div className="hidden lg:flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-2xl bg-slate-900/90 border border-emerald-500/30 text-emerald-300 whitespace-nowrap">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <div className="hidden lg:flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/80 whitespace-nowrap">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               <span className="text-[11px]">Ed25519 Ready</span>
             </div>
           </div>
@@ -485,26 +477,26 @@ export default function LabPortal() {
       {/* Status Notifications */}
       {statusMessage && (
         <div
-          className={`p-4 rounded-2xl text-xs flex items-center gap-2.5 font-medium border ${
+          className={`p-4 rounded-xl text-xs flex items-center gap-2.5 font-medium border ${
             statusMessage.type === 'success'
-              ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-200'
-              : 'bg-red-950/40 border-red-500/30 text-red-200'
+              ? 'bg-emerald-50 border-emerald-200/80 text-emerald-900'
+              : 'bg-rose-50 border-rose-200/80 text-rose-900'
           }`}
         >
           {statusMessage.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
           ) : (
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 text-red-400" />
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-600" />
           )}
           <span>{statusMessage.text}</span>
         </div>
       )}
 
-      {/* 2. Patient Context Banner (Compact Glassmorphic Bar) */}
-      <div className="rounded-3xl bg-slate-900/90 backdrop-blur-md border border-slate-800 text-white p-5 shadow-2xl relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+      {/* 2. Patient Context Banner (Compact Clean Bar) */}
+      <div className="rounded-2xl bg-white border border-slate-200/90 shadow-card p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-amber-500 text-white flex items-center justify-center font-black text-base shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/30 flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-teal-50 border border-teal-200/80 text-teal-700 flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
               {selectedPatient.shortName
                 ?.split(' ')
                 .map((n) => n[0])
@@ -514,20 +506,20 @@ export default function LabPortal() {
 
             <div className="space-y-1">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-lg font-bold tracking-tight text-white">
+                <h2 className="text-base font-semibold tracking-tight text-slate-900">
                   {selectedPatient.name || selectedPatient.shortName}
                 </h2>
-                <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-slate-950 border border-emerald-500/30 text-emerald-300">
+                <span className="font-mono bg-slate-100 text-teal-800 px-2 py-0.5 rounded-md text-xs font-semibold border border-slate-200/60">
                   {selectedPatient.healthId}
                 </span>
                 {selectedPatient.nic && (
-                  <span className="text-[10px] font-mono text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded border border-slate-700">
+                  <span className="text-[10px] font-mono text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/60">
                     NIC: {selectedPatient.nic}
                   </span>
                 )}
               </div>
 
-              <div className="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
+              <div className="text-xs text-slate-500 flex items-center gap-2 flex-wrap font-normal">
                 {selectedPatient.dateOfBirth && (
                   <>
                     <span>{calculateAge(selectedPatient.dateOfBirth)}</span>
@@ -536,8 +528,8 @@ export default function LabPortal() {
                 )}
                 <span className="capitalize">{selectedPatient.sex || 'Unknown'}</span>
                 <span>&bull;</span>
-                <span className="text-emerald-400 font-medium flex items-center gap-1">
-                  <Activity className="w-3 h-3" />
+                <span className="text-teal-700 font-medium flex items-center gap-1">
+                  <Activity className="w-3.5 h-3.5 text-teal-600" />
                   Specimen Accession Ready
                 </span>
               </div>
@@ -545,10 +537,10 @@ export default function LabPortal() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="px-3.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs flex items-center gap-2 text-slate-300">
-              <Clock className="w-4 h-4 text-amber-400" />
+            <div className="px-3.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200/80 text-xs flex items-center gap-2 text-amber-800">
+              <Clock className="w-3.5 h-3.5 text-amber-600" />
               <span>
-                Pending Tests: <strong className="text-amber-300 font-mono font-bold">{pendingOrders.length}</strong>
+                Pending Tests: <strong className="text-amber-900 font-mono font-bold">{pendingOrders.length}</strong>
               </span>
             </div>
           </div>
@@ -559,38 +551,38 @@ export default function LabPortal() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (5 cols): Pending Lab Test Orders Worklist & Completed History */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 shadow-2xl space-y-4">
+          <div className="rounded-2xl bg-white border border-slate-200/90 shadow-card p-6 space-y-4">
             {/* Worklist Tab Switcher */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/90 border border-slate-200/60">
                 <button
                   type="button"
                   onClick={() => setWorklistTab('PENDING')}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                  className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                     worklistTab === 'PENDING'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-amber-800 border border-slate-200/60 shadow-xs font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Clock className="w-3.5 h-3.5" />
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
                   <span>Pending ({pendingOrders.length})</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setWorklistTab('COMPLETED')}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                  className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                     worklistTab === 'COMPLETED'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-emerald-800 border border-slate-200/60 shadow-xs font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Fulfilled ({completedOrders.length})</span>
                 </button>
               </div>
 
-              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
                 Worklist
               </span>
             </div>
@@ -599,10 +591,10 @@ export default function LabPortal() {
             {worklistTab === 'PENDING' && (
               <div className="space-y-3">
                 {pendingOrders.length === 0 ? (
-                  <div className="text-center py-10 text-xs text-slate-500 space-y-2">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500/40 mx-auto" />
-                    <div className="text-slate-300 font-semibold">No pending orders for this patient.</div>
-                    <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                  <div className="text-center py-10 text-xs text-slate-400 space-y-2">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500/60 mx-auto" />
+                    <div className="text-slate-700 font-medium">No pending orders for this patient.</div>
+                    <p className="text-[11px] text-slate-400 max-w-xs mx-auto font-normal">
                       Issue an investigation from the Doctor Portal (/doctor) to test diagnostic fulfillment here.
                     </p>
                   </div>
@@ -615,29 +607,29 @@ export default function LabPortal() {
                     return (
                       <div
                         key={order.id}
-                        className={`p-4 rounded-2xl border transition-all ${
+                        className={`p-4 rounded-xl border transition-all ${
                           isSelected
-                            ? 'border-amber-500/80 bg-amber-500/10 shadow-lg shadow-amber-500/10'
-                            : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'
+                            ? 'border-amber-400 bg-amber-50/40 shadow-xs'
+                            : 'border-slate-200 bg-slate-50/50 hover:bg-white hover:shadow-xs'
                         }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-sm text-white">{order.testName}</span>
+                              <span className="font-semibold text-sm text-slate-900">{order.testName}</span>
                               <span
-                                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                                className={`text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full ${
                                   isStat
-                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse'
+                                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
                                     : isUrgent
-                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                                    : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-teal-50 text-teal-700 border border-teal-200'
                                 }`}
                               >
                                 {order.priority}
                               </span>
                             </div>
-                            <div className="text-xs text-slate-400 font-mono mt-0.5">
+                            <div className="text-xs text-slate-500 font-mono mt-0.5">
                               Code: {order.orderCode} &bull; LOINC: {order.testCode}
                             </div>
                           </div>
@@ -645,10 +637,10 @@ export default function LabPortal() {
                           <button
                             type="button"
                             onClick={() => selectOrderForResultEntry(order)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-1.5 transition-all self-start sm:self-center ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium shadow-xs flex items-center justify-center gap-1.5 transition-colors self-start sm:self-center ${
                               isSelected
-                                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
-                                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                                ? 'bg-amber-600 hover:bg-amber-700 text-white font-semibold'
+                                : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
                             }`}
                           >
                             <span>{isSelected ? 'Active for Entry' : 'Enter Results'}</span>
@@ -656,15 +648,15 @@ export default function LabPortal() {
                           </button>
                         </div>
 
-                        <div className="text-[11px] text-slate-400 pt-2 border-t border-slate-800/80 flex flex-wrap gap-x-4 gap-y-1">
+                        <div className="text-[11px] text-slate-500 pt-2 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1 font-normal">
                           <div>
-                            Dr: <span className="font-semibold text-slate-200">{order.doctor?.fullName || 'Physician'}</span>
+                            Dr: <span className="font-medium text-slate-800">{order.doctor?.fullName || 'Physician'}</span>
                           </div>
                           <div>
-                            Facility: <span className="font-semibold text-slate-200">{order.facility?.name || 'Hospital'}</span>
+                            Facility: <span className="font-medium text-slate-800">{order.facility?.name || 'Hospital'}</span>
                           </div>
                           {order.clinicalNotes && (
-                            <div className="w-full text-slate-400 italic mt-0.5">
+                            <div className="w-full text-slate-500 italic mt-0.5">
                               Notes: &ldquo;{order.clinicalNotes}&rdquo;
                             </div>
                           )}
@@ -680,30 +672,30 @@ export default function LabPortal() {
             {worklistTab === 'COMPLETED' && (
               <div className="space-y-3">
                 {completedOrders.length === 0 ? (
-                  <div className="text-center py-10 text-xs text-slate-500">
+                  <div className="text-center py-10 text-xs text-slate-400">
                     No completed reports yet for this patient.
                   </div>
                 ) : (
                   completedOrders.map((co) => (
                     <div
                       key={co.id}
-                      className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                      className="p-4 rounded-xl border border-emerald-200/80 bg-emerald-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-200">{co.testName}</span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          <span className="font-semibold text-slate-900">{co.testName}</span>
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                             COMPLETED
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-400 font-mono">
+                        <div className="text-[11px] text-slate-500 font-mono">
                           Code: {co.orderCode} &bull; Fulfilled:{' '}
                           {new Date(co.completedAt || co.orderedAt).toLocaleString()}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-sm self-start sm:self-center">
-                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-200/80 shadow-xs self-start sm:self-center">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                         <span>Verified Ed25519 Record</span>
                       </div>
                     </div>
@@ -714,12 +706,12 @@ export default function LabPortal() {
           </div>
 
           {/* Cryptographic Trust Information Panel */}
-          <div className="rounded-3xl bg-slate-950 border border-slate-800 p-5 shadow-2xl space-y-3 text-xs">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold uppercase tracking-wider text-[11px]">
-              <Lock className="w-4 h-4" />
+          <div className="rounded-2xl bg-slate-50/80 border border-slate-200/80 p-5 shadow-xs space-y-2 text-xs">
+            <div className="flex items-center gap-2 text-teal-700 font-semibold uppercase tracking-wider text-[11px]">
+              <Lock className="w-3.5 h-3.5 text-teal-600" />
               <span>Client-Side Facility Cryptographic Signing</span>
             </div>
-            <p className="text-slate-400 leading-relaxed text-[11px]">
+            <p className="text-slate-600 leading-relaxed text-[11px] font-normal">
               Per DESIGN.md Section 4: Demo Lab Colombo signs the HL7 FHIR DiagnosticReport + Observation bundle locally
               with its private Ed25519 key. The server validates the signature against the facility public key, creating an
               immutable, tamper-proof record.
@@ -730,31 +722,31 @@ export default function LabPortal() {
         {/* Right Column (7 cols): Structured Result Entry & Facility Signing Pad */}
         <div className="lg:col-span-7 space-y-6">
           {activeOrder ? (
-            <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 shadow-2xl space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="rounded-2xl bg-white border border-slate-200/90 shadow-card p-6 space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                    <FileCheck className="w-5 h-5" />
+                  <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700">
+                    <FileCheck className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">
+                    <h3 className="text-sm font-semibold text-slate-900">
                       Structured Observation Entry & Signing
                     </h3>
-                    <p className="text-[11px] text-slate-400">
-                      Fulfilling Order: <span className="font-mono font-bold text-amber-300">{activeOrder.orderCode}</span> ({activeOrder.testName})
+                    <p className="text-[11px] text-slate-500">
+                      Fulfilling Order: <span className="font-mono font-medium text-teal-700">{activeOrder.orderCode}</span> ({activeOrder.testName})
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-700 text-slate-300">
+                <span className="text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
                   FHIR DiagnosticReport
                 </span>
               </div>
 
               {/* Structured Observation Input Form */}
               <form onSubmit={handleSignAndUpload} className="space-y-4">
-                <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/60">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 font-bold uppercase text-[10px]">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-medium uppercase text-[10px]">
                       <tr>
                         <th className="py-2.5 px-3">Analyte / Test</th>
                         <th className="py-2.5 px-3">LOINC</th>
@@ -763,10 +755,10 @@ export default function LabPortal() {
                         <th className="py-2.5 px-3">Standard Reference Interval</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/80">
+                    <tbody className="divide-y divide-slate-100">
                       <tr>
-                        <td className="py-3 px-3 font-bold text-white">{activeOrder.testName}</td>
-                        <td className="py-3 px-3 font-mono text-slate-400">{activeOrder.testCode}</td>
+                        <td className="py-3 px-3 font-semibold text-slate-900">{activeOrder.testName}</td>
+                        <td className="py-3 px-3 font-mono text-slate-500">{activeOrder.testCode}</td>
                         <td className="py-3 px-3">
                           <input
                             type="number"
@@ -775,7 +767,7 @@ export default function LabPortal() {
                             value={observationValue}
                             onChange={(e) => setObservationValue(e.target.value)}
                             placeholder="Value"
-                            className="w-full text-sm font-bold p-2 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-400 text-white"
+                            className="w-full text-sm font-semibold p-2 rounded-lg bg-white border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                           />
                         </td>
                         <td className="py-3 px-3">
@@ -785,7 +777,7 @@ export default function LabPortal() {
                             value={observationUnit}
                             onChange={(e) => setObservationUnit(e.target.value)}
                             placeholder="Unit"
-                            className="w-full text-xs font-mono p-2 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-400 text-slate-200"
+                            className="w-full text-xs font-mono p-2 rounded-lg bg-white border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-700"
                           />
                         </td>
                         <td className="py-3 px-3">
@@ -795,7 +787,7 @@ export default function LabPortal() {
                             value={referenceRange}
                             onChange={(e) => setReferenceRange(e.target.value)}
                             placeholder="Range"
-                            className="w-full text-xs p-2 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-400 text-slate-200"
+                            className="w-full text-xs p-2 rounded-lg bg-white border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-700"
                           />
                         </td>
                       </tr>
@@ -805,37 +797,37 @@ export default function LabPortal() {
 
                 {/* Reference Range Trigger Banner */}
                 {evalResult && (
-                  <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs ${evalResult.color}`}>
+                  <div className={`p-3 rounded-lg border flex items-center justify-between gap-3 text-xs ${evalResult.color}`}>
                     <div className="flex items-center gap-2">
                       <Sparkles className="w-4 h-4 flex-shrink-0" />
                       <div>
-                        <span className="font-bold">Automated Clinical Trigger: </span>
+                        <span className="font-semibold">Automated Clinical Trigger: </span>
                         <span>{evalResult.label}</span>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-900/80 border border-current">
+                    <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/80 border border-current">
                       Status: {evalResult.status}
                     </span>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
                     Pathologist / Medical Technologist Remarks
                   </label>
                   <textarea
                     rows={2}
                     value={technicianNotes}
                     onChange={(e) => setTechnicianNotes(e.target.value)}
-                    className="w-full text-xs p-3 rounded-2xl bg-slate-950 border border-slate-700 focus:outline-none focus:border-emerald-400 text-slate-200"
+                    className="w-full text-xs p-2.5 rounded-lg bg-white border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 text-slate-900"
                   />
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-1">
                   <button
                     type="submit"
                     disabled={isUploading}
-                    className="w-full py-3.5 px-4 rounded-2xl text-xs font-bold bg-gradient-to-r from-amber-500 via-emerald-600 to-teal-500 hover:from-amber-400 hover:to-teal-400 text-slate-950 shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                    className="w-full py-2.5 px-4 rounded-lg text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                   >
                     <Upload className="w-4 h-4" />
                     <span>
@@ -848,13 +840,13 @@ export default function LabPortal() {
               </form>
             </div>
           ) : (
-            <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-12 text-center shadow-2xl space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
-                <FlaskConical className="w-7 h-7" />
+            <div className="rounded-2xl bg-white border border-dashed border-slate-200 p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-lg bg-teal-50 border border-teal-100 text-teal-700 flex items-center justify-center mx-auto">
+                <FlaskConical className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-white">Diagnostic Observation Station Idle</h3>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                <h3 className="text-sm font-semibold text-slate-900">Diagnostic Observation Station Idle</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto font-normal">
                   Select a pending test from the worklist on the left to enter observation parameters and generate a
                   facility-signed HL7 FHIR DiagnosticReport.
                 </p>
@@ -864,7 +856,7 @@ export default function LabPortal() {
                 <button
                   type="button"
                   onClick={() => selectOrderForResultEntry(pendingOrders[0])}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 inline-flex items-center gap-1.5 transition-all"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-xs inline-flex items-center gap-1.5 transition-colors"
                 >
                   <span>Fulfill First Order ({pendingOrders[0].testName})</span>
                   <ArrowRight className="w-3.5 h-3.5" />
