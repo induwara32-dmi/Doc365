@@ -70,6 +70,21 @@ const PRESET_CARDS = [
   { label: 'Sanduni Perera', patient: DEMO_PATIENTS[2], serial: 'CARD-100003-1' },
 ];
 
+const CARD_TO_HEALTH_ID = {
+  'CARD-100001-1': 'DEMO-100001-7',
+  'CARD-100002-1': 'DEMO-100002-5',
+  'CARD-100003-1': 'DEMO-100003-3',
+  'CARD-1F80-FB7D-A2CA': 'DEMO-100001-7',
+  'CARD-9FF0-6805-FDA7': 'DEMO-100002-5',
+  'CARD-2B32-D3D2-2793': 'DEMO-100003-3',
+};
+
+const HEALTH_ID_TO_CARD = {
+  'DEMO-100001-7': 'CARD-100001-1',
+  'DEMO-100002-5': 'CARD-100002-1',
+  'DEMO-100003-3': 'CARD-100003-1',
+};
+
 export default function DoctorPortal() {
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -232,23 +247,132 @@ export default function DoctorPortal() {
     });
   };
 
+  // Smart Resolver: seamlessly resolves any CARD-* serial, DEMO-* Health ID, or patient name to { healthId, cardSerial, patient }
+  const resolveScanTarget = (input) => {
+    const raw = (input || '').trim();
+    const upper = raw.toUpperCase();
+
+    // 1. Direct match in CARD_TO_HEALTH_ID
+    if (CARD_TO_HEALTH_ID[upper]) {
+      const healthId = CARD_TO_HEALTH_ID[upper];
+      const patient = DEMO_PATIENTS.find((p) => p.healthId === healthId) || selectedPatient;
+      return { healthId, cardSerial: upper, patient };
+    }
+
+    // 2. Direct match in HEALTH_ID_TO_CARD
+    if (HEALTH_ID_TO_CARD[upper]) {
+      const cardSerial = HEALTH_ID_TO_CARD[upper];
+      const patient = DEMO_PATIENTS.find((p) => p.healthId === upper) || selectedPatient;
+      return { healthId: upper, cardSerial, patient };
+    }
+
+    // 3. Match against PRESET_CARDS
+    const presetBySerial = PRESET_CARDS.find((pc) => pc.serial.toUpperCase() === upper);
+    if (presetBySerial) {
+      return {
+        healthId: presetBySerial.patient.healthId,
+        cardSerial: presetBySerial.serial,
+        patient: presetBySerial.patient,
+      };
+    }
+
+    const presetByHealthId = PRESET_CARDS.find((pc) => pc.patient.healthId.toUpperCase() === upper);
+    if (presetByHealthId) {
+      return {
+        healthId: presetByHealthId.patient.healthId,
+        cardSerial: presetByHealthId.serial,
+        patient: presetByHealthId.patient,
+      };
+    }
+
+    // 4. Match against DEMO_PATIENTS (healthId, NIC, full name, shortName, or last 4 digits)
+    const patientMatch = DEMO_PATIENTS.find(
+      (p) =>
+        p.healthId.toUpperCase() === upper ||
+        (p.nic && p.nic.toUpperCase() === upper) ||
+        p.name.toUpperCase().includes(upper) ||
+        p.shortName?.toUpperCase().includes(upper) ||
+        (upper.length >= 4 && p.healthId.toUpperCase().includes(upper))
+    );
+    if (patientMatch) {
+      const preset = PRESET_CARDS.find((pc) => pc.patient.healthId === patientMatch.healthId);
+      const cardSerial = preset?.serial || HEALTH_ID_TO_CARD[patientMatch.healthId] || `CARD-${patientMatch.healthId.replace('DEMO-', '')}`;
+      return { healthId: patientMatch.healthId, cardSerial, patient: patientMatch };
+    }
+
+    // 5. Input starts with CARD-
+    if (upper.startsWith('CARD-')) {
+      const derivedHealthId = upper.replace(/^CARD-/, 'DEMO-');
+      const matched = DEMO_PATIENTS.find((p) => p.healthId.toUpperCase() === derivedHealthId) || selectedPatient;
+      return {
+        healthId: matched?.healthId || derivedHealthId,
+        cardSerial: raw || upper,
+        patient: matched,
+      };
+    }
+
+    // 6. Input starts with DEMO-
+    if (upper.startsWith('DEMO-')) {
+      const derivedSerial = upper.replace(/^DEMO-/, 'CARD-');
+      const matched = DEMO_PATIENTS.find((p) => p.healthId.toUpperCase() === upper) || {
+        healthId: upper,
+        name: `Patient (${upper})`,
+        shortName: upper,
+        status: 'ACTIVE',
+      };
+      return {
+        healthId: upper,
+        cardSerial: derivedSerial,
+        patient: matched,
+      };
+    }
+
+    // 7. Fallback to currently selected patient
+    const fallbackHealthId = selectedPatient?.healthId || 'DEMO-100001-7';
+    const fallbackSerial = HEALTH_ID_TO_CARD[fallbackHealthId] || raw || 'CARD-100001-1';
+    return {
+      healthId: fallbackHealthId,
+      cardSerial: fallbackSerial,
+      patient: selectedPatient,
+    };
+  };
+
   // Handle Preset Select
   const handleSelectPreset = (preset, autoTap = false) => {
     setSelectedPatient(preset.patient);
     setCardSerial(preset.serial);
     setIsPresetDropdownOpen(false);
     if (autoTap) {
-      handleCardTap(preset.patient, preset.serial);
+      handleScanCard({ patient: preset.patient, serial: preset.serial });
     }
   };
 
   // Handle Card Tap / Scan (creates 90-day AccessGrant)
-  const handleCardTap = async (patientToScan = selectedPatient, serialToUse = cardSerial) => {
+  const handleScanCard = async (targetInput = cardSerial) => {
+    let resolved;
+    if (typeof targetInput === 'object' && targetInput !== null) {
+      resolved = resolveScanTarget(targetInput.serial || targetInput.cardSerial || targetInput.healthId);
+      if (targetInput.patient) {
+        resolved.patient = targetInput.patient;
+        resolved.healthId = targetInput.patient.healthId || resolved.healthId;
+      }
+    } else {
+      resolved = resolveScanTarget(targetInput);
+    }
+
+    const { healthId, cardSerial: serialToUse, patient } = resolved;
+
+    if (patient) {
+      setSelectedPatient(patient);
+    }
+    setCardSerial(serialToUse);
     setLoading(true);
     setStatusMessage(null);
+
     const res = await scanCard({
+      healthId,
       cardSerial: serialToUse,
-      patientHealthId: patientToScan.healthId,
+      facilityId: activeFacility?.id || currentUser?.facilityId,
     });
     setLoading(false);
 
@@ -257,35 +381,29 @@ export default function DoctorPortal() {
       setIsBreakGlass(false);
       setStatusMessage({
         type: 'success',
-        text: `NFC Card verified (${res.data.grant.cardSerial}). 90-day clinical consultation grant active.`,
+        text: `NFC Card verified (${res.data.grant?.cardSerial || serialToUse}). 90-day clinical consultation grant active.`,
       });
-      loadPatientClinicalData(patientToScan.healthId);
+      loadPatientClinicalData(healthId);
       // Advance to Step 2: Patient Summary & Actions
       setWorkflowStep('PATIENT_SUMMARY');
     } else {
-      setStatusMessage({ type: 'error', text: res.error.message || 'Card scan failed. Check card status.' });
+      setStatusMessage({
+        type: 'error',
+        text: res.error?.message || 'Card scan failed. Check card status.',
+      });
     }
+  };
+
+  // Backward-compatible alias for any callers
+  const handleCardTap = (patientToScan = selectedPatient, serialToUse = cardSerial) => {
+    return handleScanCard(serialToUse || patientToScan?.healthId);
   };
 
   // Handle Enter / Submit from the scanner
   const handleScannerSubmit = (e) => {
     e.preventDefault();
     if (!cardSerial.trim()) return;
-
-    const query = cardSerial.trim().toUpperCase();
-    const matched =
-      DEMO_PATIENTS.find(
-        (p) => p.healthId.toUpperCase() === query || query.includes(p.healthId.slice(-4))
-      ) || PRESET_CARDS.find((pc) => pc.serial.toUpperCase() === query)?.patient;
-
-    if (matched) {
-      setSelectedPatient(matched);
-      const serial = PRESET_CARDS.find((pc) => pc.patient.healthId === matched.healthId)?.serial || query;
-      setCardSerial(serial);
-      handleCardTap(matched, serial);
-    } else {
-      handleCardTap(selectedPatient, cardSerial.trim());
-    }
+    handleScanCard(cardSerial.trim());
   };
 
   // Break-Glass Override

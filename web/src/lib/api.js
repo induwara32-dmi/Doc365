@@ -139,10 +139,14 @@ export async function getPublicFacilities(type = null) {
 }
 
 // Doctor & Clinical API
-export async function scanCard({ healthId, cardSerial }) {
+export async function scanCard({ healthId, cardSerial, facilityId }) {
   return apiRequest('/access/scan', {
     method: 'POST',
-    body: { healthId, cardSerial },
+    body: {
+      healthId,
+      cardSerial,
+      ...(facilityId ? { facilityId } : {}),
+    },
   });
 }
 

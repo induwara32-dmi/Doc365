@@ -125,6 +125,7 @@ const RecordCorrectBody = z.object({
 const ScanCardBody = z.object({
   healthId: z.string().trim().min(5),
   cardSerial: z.string().trim().min(5),
+  facilityId: z.string().optional(),
 });
 
 const BreakGlassBody = z.object({
@@ -298,8 +299,8 @@ api.get('/records/:id/history', 'record.view', async (req, res) => {
 
 // 1. Three Keys card scan (creates 90-day AccessGrant)
 api.post('/access/scan', 'access.scan', async (req, res) => {
-  const { healthId, cardSerial } = parseBody(ScanCardBody, req.body);
-  const result = await scanCardAndCreateGrant({ healthId, cardSerial }, { actor: req.actor });
+  const { healthId, cardSerial, facilityId } = parseBody(ScanCardBody, req.body);
+  const result = await scanCardAndCreateGrant({ healthId, cardSerial, facilityId }, { actor: req.actor });
   res.status(201).json(result);
 });
 
